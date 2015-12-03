@@ -7,60 +7,62 @@ module BitBroker
   class Solvant
     DEFAULT_CHUNK_SIZE = 1<<20
 
-    def initialize(path, chunk_size = DEFAULT_CHUNKSIZE)
+    def initialize(path, chunk_size = DEFAULT_CHUNK_SIZE)
+      # Validate target file at first
+      if not FileTest.exist? path
+        FileUtils.touch(path)
+      end
+
+      # initialize parameters
       @info = File.new(path)
       @chunks = []
 
-      # the case target file isn't exist
-      begin
-      rescue Errno::ENOENT => e
-        
-      end
-
       # separate per chunk
       chunk_splitter(@info.stat.size, chunk_size) do |offset, size|
-        @chunks.push(Chunk.new(path, offset, size))
+        #@chunks.push(Chunk.new(path, offset, size))
+        @chunks.push(Chunk.new({
+          :path => path,
+          :size => size,
+          :offset => offset,
+          :chunk_size => chunk_size,
+        }))
       end
     end
 
     class Chunk
-      def initialize(path, offset, size)
-        @path = path
-        @size = size
-        @offset = offset
+      def initialize(opts)
+        @path = opts[:path]
+        @size = opts[:size]
+        @offset = opts[:offset]
+        @chunk_size = opts[:chunk_size]
       end
 
-      def to_h
-        {
-          'data': IO.binread(@path, @size, @offset),
+      def serialize
+        MessagePack.pack({
+          'path': @path,
+          'data': IO.binread(@path, @size, @offset * @chunk_size),
           'offset': @offset,
-        }
+          'chunk_size': @chunk_size,
+        })
       end
     end
 
     # This defines operations to manipulate actual Flie object on FileSystem
-    def upload(publisher)
-      publisher.send(self.serialize)
-    end
-  
     def remove
       File.delete(opts[:path])
-    end
-  
-    def save opts
-      File.binwrite(opts[:path], opts[:data])
-      @status.set 
     end
 
     def upload broker
       @chunks.each do |chunk|
-        binary = MessagePack.pack(chunk.to_h.merge({
-          'path' => @info.path,
-          'total' => @chunks.length
-        }))
-
-        broker.send(binary)
+        broker.send(chunk.serialize)
       end
+    end
+
+    def load_binary binary
+      data = MessagePack.unpack(binary)
+      offset = data['offset'] * data['chunk_size']
+
+      File.binwrite(@info.path, data['data'], offset)
     end
   
     private
