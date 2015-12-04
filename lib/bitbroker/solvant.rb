@@ -1,5 +1,3 @@
-#!/usr/bin/env ruby
-
 require 'msgpack'
 require 'fileutils'
 
@@ -39,10 +37,10 @@ module BitBroker
 
       def serialize
         MessagePack.pack({
-          'path': @path,
-          'data': IO.binread(@path, @size, @offset * @chunk_size),
-          'offset': @offset,
-          'chunk_size': @chunk_size,
+          'path' => @path,
+          'data' => File.binread(@path, @size, @offset * @chunk_size),
+          'offset' => @offset,
+          'chunk_size' => @chunk_size,
         })
       end
     end

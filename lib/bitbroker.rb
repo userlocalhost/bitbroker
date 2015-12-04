@@ -1,5 +1,8 @@
 require "bitbroker/version"
+require 'bitbroker/solvant'
 
 module Bitbroker
-  # Your code goes here...
+  def self.version
+    VERSION
+  end
 end
