@@ -49,7 +49,8 @@ module BitBroker
 
     # This defines operations to manipulate actual Flie object on FileSystem
     def remove
-      File.delete(opts[:path])
+      puts "path: #{@info.path}"
+      File.unlink(@info.path)
     end
 
     def upload broker

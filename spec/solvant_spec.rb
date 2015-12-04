@@ -27,7 +27,7 @@ describe BitBroker::Solvant do
       @solvant = BitBroker::Solvant.new(temporary_path)
     end
     after do
-      File.unlink(temporary_path)
+      File.unlink(temporary_path) if FileTest.exist? temporary_path
     end
     it 'create a new solvant' do
       expect(File).to exist(temporary_path)
@@ -46,6 +46,11 @@ describe BitBroker::Solvant do
       expect(IO.read(temporary_path,
                      data['data'].length,
                      data['offset'] * data['chunk_size'])).to eq(data['data'])
+    end
+    it "remove file" do
+      @solvant.remove
+
+      expect(File).not_to exist(temporary_path)
     end
   end
 end
