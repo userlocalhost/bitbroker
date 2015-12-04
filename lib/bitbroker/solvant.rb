@@ -5,6 +5,8 @@ module BitBroker
   class Solvant
     DEFAULT_CHUNK_SIZE = 1<<20
 
+    attr_reader :chunks
+
     def initialize(path, chunk_size = DEFAULT_CHUNK_SIZE)
       # Validate target file at first
       if not FileTest.exist? path

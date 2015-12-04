@@ -3,9 +3,23 @@ require 'spec_helper'
 describe BitBroker::Solvant do
   let(:temporary_path) { SecureRandom.uuid + 'bitbroker-test' }
 
+  def data_generate size
+    (1..size).map{'.'}.join
+  end
+
   context "with existed file" do
-    it 'specifies a small file'
-    it 'specifies a big file'
+    it 'specifies a small file' do
+      solvant = BitBroker::Solvant.new(__FILE__)
+      expect(solvant.chunks.count).to eq(1)
+    end
+    it 'specifies a big file' do
+      File.write(temporary_path, data_generate(1<<21))
+      solvant = BitBroker::Solvant.new(temporary_path)
+
+      expect(solvant.chunks.count).to be > 1
+
+      File.unlink(temporary_path)
+    end
   end
 
   context "with new file" do
@@ -29,9 +43,9 @@ describe BitBroker::Solvant do
 
       @solvant.load_binary bin
 
-      expect(IO.read(temporary_path, 
+      expect(IO.read(temporary_path,
                      data['data'].length,
-                     data['offset'] * data['chunk_size'])).to eql(data['data'])
+                     data['offset'] * data['chunk_size'])).to eq(data['data'])
     end
   end
 end
