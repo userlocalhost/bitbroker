@@ -52,5 +52,15 @@ describe BitBroker::Solvant do
 
       expect(File).not_to exist(temporary_path)
     end
+    it 'upload a file' do
+      uploaded = false
+
+      # making a mock of Broker object
+      allow_any_instance_of(BitBroker::Broker).to receive(:send) { uploaded = true }
+
+      @solvant.upload
+
+      expect(uploaded).to be true
+    end
   end
 end
