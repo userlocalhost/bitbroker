@@ -54,8 +54,6 @@ describe BitBroker::Solvant do
     end
     it 'upload a file' do
       uploaded = false
-
-      # making a mock of Broker object
       allow_any_instance_of(BitBroker::Broker).to receive(:send) { uploaded = true }
 
       @solvant.upload
