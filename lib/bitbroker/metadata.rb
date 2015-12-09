@@ -1,3 +1,5 @@
+require 'msgpack'
+
 module BitBroker
   class Metadata
     ROUTING_KEY = 'metadata'
@@ -15,13 +17,13 @@ module BitBroker
     def advertise
       ### no implementation
     end
-    def request_all
+    def request_all(files)
       ### no implementation
     end
-    def suggestion
+    def suggestion(files, rkey)
       ### no implementation
     end
-    def request
+    def request(files, rkey)
       ### no implementation
     end
 
@@ -55,9 +57,9 @@ module BitBroker
       end
       def serialize
         {
-          'path'  => path,
-          'size'  => size
-          'mtime' => mtime,
+          'path'  => @path,
+          'size'  => @size,
+          'mtime' => @mtime,
         }
       end
     end
