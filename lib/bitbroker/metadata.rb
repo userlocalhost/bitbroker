@@ -1,18 +1,36 @@
 module BitBroker
   class Metadata
+    ROUTING_KEY = 'metadata'
+
+    TYPE_ADVERTISE = 1<<0
+    TYPE_REQUEST_ALL = 1<<1
+    TYPE_SUGGESTION = 1<<2
+    TYPE_REQUEST = 1<<3
+
     def initialize path
       @files = scanning_files(path).map do
-        FileInfo.new path
+        FileInfo.new(path)
       end
     end
-    def adv
+    def advertise
       ### no implementation
     end
-    def req
+    def request_all
+      ### no implementation
+    end
+    def suggestion
+      ### no implementation
+    end
+    def request
       ### no implementation
     end
 
     private
+    def send(rkey, data)
+      broker = Publisher.new
+      broker.send(rkey, data)
+    end
+
     def scanning_files(current_dir, &block)
       arr = []
       Dir.foreach(current_dir) do |f|
@@ -30,10 +48,17 @@ module BitBroker
     end
 
     class FileInfo
-      attr_reader :path, :timestamp
-      def initialize path
+      def initialize(path)
         @path = path
-        @timestamp = File.mtime(path)
+        @size = File.size(path)
+        @mtime = File.mtime(path)
+      end
+      def serialize
+        {
+          'path'  => path,
+          'size'  => size
+          'mtime' => mtime,
+        }
       end
     end
   end

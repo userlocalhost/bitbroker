@@ -10,6 +10,7 @@ module BitBroker
                               :passwd => config[:passwd])
       @connection.start
       @channel = @connection.create_channel
+      @exchange = @channel.direct(config['name'])
     end
 
     def stop
