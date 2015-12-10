@@ -5,9 +5,6 @@ require 'msgpack'
 module BitBroker
   ### This object is created for each directory
   class Manager
-    RKEY_DATA = 'data'
-    RKEY_METADATA = 'metadata'
-
     WAINTING_TIMEOUT = 5
     CONFIG_PATH = "#{ENV['HOME']}/.bitbroker/config.yml"
 
@@ -15,28 +12,28 @@ module BitBroker
     STATE_WAIT_SUGGESTION = 1<<1
     STATE_WAIT_DATA = 1<<2
 
-    def self.mqconfig
-      config = YAML.load_file(CONFIG_PATH)['mqconfig']
-      config['prkey_metadata'] = Mac.addr + 'metadata'
-
-      config
-    end
-
     def initialize(opts)
+      # set default values
+      opts[:config_file] = CONFIG_PATH unless opts[:config_file]
+
+      # validate user created arguments
       validate(opts)
 
-      @namelabel = opts[:name]
       @dirpath = form_dirpath(opts[:path])
+      @config = Config.new({
+        :name => opts[:name],
+        :config_file => opts[:config_file],
+      })
 
-      @metadata = Metadata.new(@dirpath, @namelabel)
+      @metadata = Metadata.new(@dirpath, @config)
     end
 
     ### initializer to start bitbroker
     def start
-      @pid_metadata_receiver = start_metadata_receiver
-
       ## construct metadata
       @metadata.advertise
+
+      @pid_metadata_receiver = start_metadata_receiver
     end
 
     # This methods receives all requested files from remote nodes through AMQP
@@ -61,25 +58,26 @@ module BitBroker
     end
     def validate opts
       raise InvalidArgument("Specified path is not directory") unless File.directory?(opts[:path])
+      raise InvalidArgument("invalid config file") unless File.exist?(opts[:config_file])
     end
 
     def start_metadata_receiver
       fork do
-        BitBroker::Subscriber.new(@namelabel).receive(RKEY_METADATA) do |data|
+        BitBroker::Subscriber.new(@config).recv_metadata do |data, from|
           ### no implementation yet
+          puts "[Manager] (metadata_receiver) #{data} [from: #{from}]"
         end
       end
     end
 
     def receive_suggestions(timeout=WAINTING_TIMEOUT)
-      conf = Manager.mqconfig['prkey_metadata']
       ret = []
 
       pid = fork do
         Signal.trap('TERM') do
           raise Exception('TIMEDOUT')
         end
-        Subscriber.new(@namelabel).receive(conf['prkey_metadata']) do |data|
+        Subscriber.new(@config).recv_p_metadata do |data, from|
           ret.push(data)
         end
       end
@@ -88,6 +86,18 @@ module BitBroker
       Process.kill('TERM', pid)
 
       ret
+    end
+
+    class Config
+      attr_reader :name
+
+      def initialize opts
+        @name = opts[:name]
+        @config = YAML.load_file(opts[:config_file])
+      end
+      def [](param)
+        @config[param]
+      end
     end
   end
 end

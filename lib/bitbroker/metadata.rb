@@ -2,44 +2,39 @@ require 'msgpack'
 
 module BitBroker
   class Metadata
-    ROUTING_KEY = 'metadata'
-
     TYPE_ADVERTISE = 1<<0
     TYPE_REQUEST_ALL = 1<<1
     TYPE_SUGGESTION = 1<<2
     TYPE_REQUEST = 1<<3
 
-    def initialize(dirpath, name)
-      @broker = Publisher.new(name)
-      @files = scanning_files(dirpath).map do |fullpath|
-        FileInfo.new(path)
+    def initialize(dir, config)
+      @config = config
+      @broker = Publisher.new(@config)
+      @files = scanning_files(dir).map do |path|
+        FileInfo.new(dir, path)
       end
     end
     def advertise
-      send({
+      @broker.send_metadata({
         :type => TYPE_ADVERTISE,
-        :routing_key => ROUTING_KEY,
         :data => @files.map{|x| x.serialize },
       })
     end
     def request_all(files)
-      send({
+      @broker.send_metadata({
         :type => TYPE_REQUEST_ALL,
-        :routing_key => ROUTING_KEY,
         :data => files,
       })
     end
-    def suggestion(files, rkey)
-      send({
+    def suggestion(files, dest)
+      @broker.send_p_metadata(dest, {
         :type => TYPE_SUGGETSION,
-        :routing_key => rkey,
         :data => files,
       })
     end
-    def request(files, rkey)
-      send({
+    def request(files, dest)
+      @broker.send_p_metadata(dest, {
         :type => TYPE_REQUEST,
-        :routing_key => rkey,
         :data => files,
       })
     end
@@ -60,27 +55,24 @@ module BitBroker
       end
       arr
     end
-    def send opts
-      mqconfig = Manager.mqconfig
-
-      @broker.send(opts[:routing_key], {
-        'type' => opts[:type],
-        'data' => opts[:data],
-        'routing_key' => mqconfig[:prkey_metadata],
-      })
-    end
     class FileInfo
-      def initialize(path)
+      def initialize(dir, path)
+        @dir = dir
         @path = path
-        @size = File.size(path)
-        @mtime = File.mtime(path)
       end
       def serialize
+        file = File.new(@path)
         {
-          'path'  => @path,
-          'size'  => @size,
-          'mtime' => @mtime.to_s,
+          'path'  => get_relative_path(@dir, @path),
+          'size'  => file.size,
+          'mtime' => file.mtime.to_s,
         }
+      end
+
+      private
+      def get_relative_path(dir, path)
+        raise DiscomfortDirectoryStructure unless !!path.match(/^#{dir}/)
+        path.split(dir).last
       end
     end
   end
