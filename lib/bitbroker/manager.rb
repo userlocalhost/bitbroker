@@ -23,8 +23,10 @@ module BitBroker
     end
 
     def initialize(opts)
+      validate(opts)
+
       @namelabel = opts[:name]
-      @dirpath = opts[:path]
+      @dirpath = form_dirpath(opts[:path])
 
       @metadata = Metadata.new(@dirpath, @namelabel)
     end
@@ -54,6 +56,13 @@ module BitBroker
     end
 
     private
+    def form_dirpath path
+        path[-1] == '/' ? form_dirpath(path.chop) : path
+    end
+    def validate opts
+      raise InvalidArgument("Specified path is not directory") unless File.directory?(opts[:path])
+    end
+
     def start_metadata_receiver
       fork do
         BitBroker::Subscriber.new(@namelabel).receive(RKEY_METADATA) do |data|

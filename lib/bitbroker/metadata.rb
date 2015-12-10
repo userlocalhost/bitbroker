@@ -10,8 +10,8 @@ module BitBroker
     TYPE_REQUEST = 1<<3
 
     def initialize(dirpath, name)
-      @namelabel = name
-      @files = scanning_files(dirpath).map do |path|
+      @broker = Publisher.new(name)
+      @files = scanning_files(dirpath).map do |fullpath|
         FileInfo.new(path)
       end
     end
@@ -62,9 +62,8 @@ module BitBroker
     end
     def send opts
       mqconfig = Manager.mqconfig
-      broker = Publisher.new(@namelabel)
 
-      broker.send(opts[:routing_key], {
+      @broker.send(opts[:routing_key], {
         'type' => opts[:type],
         'data' => opts[:data],
         'routing_key' => mqconfig[:prkey_metadata],
