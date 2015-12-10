@@ -9,36 +9,48 @@ module BitBroker
     TYPE_SUGGESTION = 1<<2
     TYPE_REQUEST = 1<<3
 
-    def initialize path
-      @files = scanning_files(path).map do
+    def initialize(dirpath, name)
+      @namelabel = name
+      @files = scanning_files(dirpath).map do |path|
         FileInfo.new(path)
       end
     end
     def advertise
-      ### no implementation
+      send({
+        :type => TYPE_ADVERTISE,
+        :routing_key => ROUTING_KEY,
+        :data => @files.map{|x| x.serialize },
+      })
     end
     def request_all(files)
-      ### no implementation
+      send({
+        :type => TYPE_REQUEST_ALL,
+        :routing_key => ROUTING_KEY,
+        :data => files,
+      })
     end
     def suggestion(files, rkey)
-      ### no implementation
+      send({
+        :type => TYPE_SUGGETSION,
+        :routing_key => rkey,
+        :data => files,
+      })
     end
     def request(files, rkey)
-      ### no implementation
+      send({
+        :type => TYPE_REQUEST,
+        :routing_key => rkey,
+        :data => files,
+      })
     end
 
     private
-    def send(rkey, data)
-      broker = Publisher.new
-      broker.send(rkey, data)
-    end
-
     def scanning_files(current_dir, &block)
       arr = []
       Dir.foreach(current_dir) do |f|
         if /^\.+$/ !~ f
           path = "#{current_dir}/#{f}"
-    
+
           if File.directory? f
             arr += scanning(path)
           else
@@ -48,7 +60,16 @@ module BitBroker
       end
       arr
     end
+    def send opts
+      mqconfig = Manager.mqconfig
+      broker = Publisher.new(@namelabel)
 
+      broker.send(opts[:routing_key], {
+        'type' => opts[:type],
+        'data' => opts[:data],
+        'routing_key' => mqconfig[:prkey_metadata],
+      })
+    end
     class FileInfo
       def initialize(path)
         @path = path
@@ -59,7 +80,7 @@ module BitBroker
         {
           'path'  => @path,
           'size'  => @size,
-          'mtime' => @mtime,
+          'mtime' => @mtime.to_s,
         }
       end
     end

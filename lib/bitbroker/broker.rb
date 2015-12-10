@@ -1,21 +1,23 @@
+require 'bunny'
+
 module BitBroker
   # This method communicate with AMQP for transmitting and receiving data
   class Broker
-    def initialize
+    def initialize(name)
       config = Manager.mqconfig
 
-      @connection = Bunny.new(:host   => config[:host],
-                              :vhost  => config[:vhost],
-                              :user   => config[:user],
-                              :passwd => config[:passwd])
+      @connection = Bunny.new(:host     => config['host'],
+                              :vhost    => config['vhost'],
+                              :user     => config['user'],
+                              :password => config['passwd'])
       @connection.start
       @channel = @connection.create_channel
-      @exchange = @channel.direct(config['name'])
+      @exchange = @channel.direct(name)
     end
 
-    def stop
-      @channel.stop
-      @connection.stop
+    def finish
+      @channel.close
+      @connection.close
     end
   end
 end
