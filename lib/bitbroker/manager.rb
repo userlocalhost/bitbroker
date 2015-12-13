@@ -1,6 +1,7 @@
 require 'yaml'
 require 'macaddr'
 require 'msgpack'
+require 'time'
 
 module BitBroker
   ### This object is created for each directory
@@ -15,7 +16,7 @@ module BitBroker
       # validate user created arguments
       validate(opts)
 
-      @metadata = Metadata.new(@dirpath)
+      @metadata = Metadata.new( form_dirpath(opts[:path]))
 
       ### prepare brokers
       config = {
@@ -40,7 +41,6 @@ module BitBroker
     end
     def validate opts
       raise InvalidArgument("Specified path is not directory") unless File.directory?(opts[:path])
-      raise InvalidArgument("invalid config file") unless File.exist?(opts[:config_file])
     end
 
     def start_metadata_receiver
@@ -64,6 +64,18 @@ module BitBroker
     end
 
     def receive_advertise(data, from)
+      def need_update?(remote)
+        case f = @metadata.get_file(remote['path']).first
+        when nil
+          true
+        else
+          f.info.size != remote['size'] and
+          f.info.mtime < Time.parse(remote['mtime'])
+        end
+      end
+
+      @metadata.request_all(@publisher,
+                            update_files = data.select { |f| will_update?(f) })
     end
 
     def receive_request_all(data, from)

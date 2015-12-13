@@ -12,6 +12,10 @@ module BitBroker
         FileInfo.new(dir, path)
       end
     end
+    def get_file(path)
+      @files.select { |f| f == path }
+    end
+
     def advertise(broker)
       broker.send_metadata({
         :type => TYPE_ADVERTISE,
@@ -55,13 +59,15 @@ module BitBroker
     end
     class FileInfo
       def initialize(dir, path)
-        @dir = dir
-        @path = path
+        @path = get_relative_path(dir, path)
+      end
+      def info
+        File.new(@path)
       end
       def serialize
         file = File.new(@path)
         {
-          'path'  => get_relative_path(@dir, @path),
+          'path'  => file.path,
           'size'  => file.size,
           'mtime' => file.mtime.to_s,
         }
