@@ -78,7 +78,10 @@ module BitBroker
       begin
         queue.subscribe(:block => true) do |info, prop, binary|
           msg = MessagePack.unpack(binary)
-          block.call(msg['data'], msg['from'])
+
+          if msg['from'] != Mac.addr
+            block.call(msg['data'], msg['from'])
+          end
         end
       rescue Exception => _
         finish
