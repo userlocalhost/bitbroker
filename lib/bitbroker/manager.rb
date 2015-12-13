@@ -36,22 +36,6 @@ module BitBroker
       @pid_metadata_receiver = start_metadata_receiver
     end
 
-    # This methods receives all requested files from remote nodes through AMQP
-    def receive_requests files
-
-      suggestions = []
-      state = STATE_WAIT_SUGGESTION
-      while ! state & STATE_FINISH
-        case state
-        when STATE_WAIT_SUGGESTION then
-          suggestions.push(receive_suggestions)
-
-          verify_suggestion(files, suggestions)
-        when STATE_WAIT_DATA then
-        end
-      end
-    end
-
     private
     def form_dirpath path
         path[-1] == '/' ? form_dirpath(path.chop) : path
@@ -66,8 +50,31 @@ module BitBroker
         BitBroker::Subscriber.new(@config).recv_metadata do |data, from|
           ### no implementation yet
           puts "[Manager] (metadata_receiver) #{data} [from: #{from}]"
+
+          case data['type']
+          when Metadata::TYPE_ADVERTISE then
+            receive_advertise(data, from)
+          when Metadata::TYPE_REQUEST_ALL then
+            receive_request_all(data, from)
+          when Metadata::TYPE_SUGGESTION then
+            receive_suggestion(data, from)
+          when Metadata::TYPE_REQEUST then
+            receive_request(data, from)
+          end
         end
       end
+    end
+
+    def receive_advertise(data, from)
+    end
+
+    def receive_request_all(data, from)
+    end
+
+    def receive_suggestion(data, from)
+    end
+
+    def receive_request(data, from)
     end
 
     def receive_suggestions(timeout=WAINTING_TIMEOUT)
