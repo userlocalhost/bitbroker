@@ -52,11 +52,9 @@ module BitBroker
       File.unlink(@info.path)
     end
 
-    def upload
-      broker = Broker.new
-
+    def upload broker
       @chunks.each do |chunk|
-        broker.send(chunk.serialize)
+        broker.send_data(chunk.serialize)
       end
     end
 

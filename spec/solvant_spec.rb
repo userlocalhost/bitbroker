@@ -54,9 +54,13 @@ describe BitBroker::Solvant do
     end
     it 'upload a file' do
       uploaded = false
-      allow_any_instance_of(BitBroker::Broker).to receive(:send) { uploaded = true }
+      subscriber = BitBroker::Subscriber.new({
+        :mqconfig => MQCONFIG,
+        :label => 'test-label'
+      })
+      subscriber.stub(:send_data) { uploaded = true }
 
-      @solvant.upload
+      @solvant.upload(subscriber)
 
       expect(uploaded).to be true
     end

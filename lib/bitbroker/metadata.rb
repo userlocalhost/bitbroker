@@ -7,33 +7,31 @@ module BitBroker
     TYPE_SUGGESTION = 1<<2
     TYPE_REQUEST = 1<<3
 
-    def initialize(dir, config)
-      @config = config
-      @broker = Publisher.new(@config)
+    def initialize(dir)
       @files = scanning_files(dir).map do |path|
         FileInfo.new(dir, path)
       end
     end
-    def advertise
-      @broker.send_metadata({
+    def advertise(broker)
+      broker.send_metadata({
         :type => TYPE_ADVERTISE,
         :data => @files.map{|x| x.serialize },
       })
     end
-    def request_all(files)
-      @broker.send_metadata({
+    def request_all(broker, files)
+      broker.send_metadata({
         :type => TYPE_REQUEST_ALL,
         :data => files,
       })
     end
-    def suggestion(files, dest)
-      @broker.send_p_metadata(dest, {
+    def suggestion(broker, files, dest)
+      broker.send_p_metadata(dest, {
         :type => TYPE_SUGGETSION,
         :data => files,
       })
     end
-    def request(files, dest)
-      @broker.send_p_metadata(dest, {
+    def request(broker, files, dest)
+      broker.send_p_metadata(dest, {
         :type => TYPE_REQUEST,
         :data => files,
       })

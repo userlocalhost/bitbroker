@@ -8,13 +8,13 @@ module BitBroker
     RKEY_METADATA = 'metadata'
 
     def initialize(config)
-      @connection = Bunny.new(:host     => config['mqconfig']['host'],
-                              :vhost    => config['mqconfig']['vhost'],
-                              :user     => config['mqconfig']['user'],
-                              :password => config['mqconfig']['passwd'])
+      @connection = Bunny.new(:host     => config[:mqconfig]['host'],
+                              :vhost    => config[:mqconfig]['vhost'],
+                              :user     => config[:mqconfig]['user'],
+                              :password => config[:mqconfig]['passwd'])
       @connection.start
       @channel = @connection.create_channel
-      @exchange = @channel.direct(config.name)
+      @exchange = @channel.direct(config[:label])
     end
 
     def finish
