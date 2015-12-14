@@ -1,6 +1,20 @@
 require 'spec_helper'
 
 describe BitBroker::Manager do
+  let(:shared_directory) { '' }
+  before do
+    @manager = BitBroker::Manager.new({
+      :path => File.dirname(__FILE__),
+      :name => 'spec-test',
+      :mqconfig => MQCONFIG,
+    })
+
+    @manager.start_metadata_receiver
+  end
+  after do
+    @manager.stop_metadata_receiver
+  end
+
   context "receive advertisement" do
     it "need all files"
     it "need part of files"

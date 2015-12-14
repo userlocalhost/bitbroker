@@ -27,15 +27,15 @@ module BitBroker
       @subscriber = Subscriber.new(config)
     end
 
-    ### initializer to start bitbroker
-    def start
-      ## construct metadata
+    def advertise
       @metadata.advertise(@publisher)
-
-      @pid_metadata_receiver = start_metadata_receiver
     end
 
-    def stop
+    def start_metadata_receiver
+      @pid_metadata_receiver = do_start_metadata_receiver
+    end
+
+    def stop_metadata_receiver
       Process.kill('TERM', @pid_metadata_receiver)
     end
 
@@ -47,7 +47,7 @@ module BitBroker
       raise InvalidArgument("Specified path is not directory") unless File.directory?(opts[:path])
     end
 
-    def start_metadata_receiver
+    def do_start_metadata_receiver
       fork do
         @subscriber.recv_metadata do |data, from|
           case data['type']
