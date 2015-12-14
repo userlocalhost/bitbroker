@@ -58,8 +58,15 @@ module BitBroker
       arr
     end
     class FileInfo
+      attr_reader :path
+
       def initialize(dir, path)
-        @path = get_relative_path(dir, path)
+        @dir = dir
+        @path = path
+      end
+      def relative_path
+        raise DiscomfortDirectoryStructure unless !!path.match(/^#{@dir}/)
+        @path.split(@dir).last
       end
       def info
         File.new(@path)
@@ -67,16 +74,10 @@ module BitBroker
       def serialize
         file = File.new(@path)
         {
-          'path'  => file.path,
+          'path'  => relative_path,
           'size'  => file.size,
           'mtime' => file.mtime.to_s,
         }
-      end
-
-      private
-      def get_relative_path(dir, path)
-        raise DiscomfortDirectoryStructure unless !!path.match(/^#{dir}/)
-        path.split(dir).last
       end
     end
   end

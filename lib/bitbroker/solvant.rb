@@ -58,6 +58,12 @@ module BitBroker
       end
     end
 
+    def upload_to(broker, dest)
+      @chunks.each do |chunk|
+        broker.send_p_data(dest, chunk.serialize)
+      end
+    end
+
     def load_binary binary
       data = MessagePack.unpack(binary)
       offset = data['offset'] * data['chunk_size']

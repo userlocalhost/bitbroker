@@ -35,6 +35,10 @@ module BitBroker
       @pid_metadata_receiver = start_metadata_receiver
     end
 
+    def stop
+      Process.kill('TERM', @pid_metadata_receiver)
+    end
+
     private
     def form_dirpath path
         path[-1] == '/' ? form_dirpath(path.chop) : path
@@ -46,9 +50,6 @@ module BitBroker
     def start_metadata_receiver
       fork do
         @subscriber.recv_metadata do |data, from|
-          ### no implementation yet
-          puts "[Manager] (metadata_receiver) #{data} [from: #{from}]"
-
           case data['type']
           when Metadata::TYPE_ADVERTISE then
             receive_advertise(data, from)
@@ -74,17 +75,26 @@ module BitBroker
         end
       end
 
-      @metadata.request_all(@publisher,
-                            update_files = data.select { |f| will_update?(f) })
+      @metadata.request_all(@publisher, data.select {|f| will_update?(f)})
     end
 
     def receive_request_all(data, from)
+      def has_file?(remote)
+        @metadata.get_file(remote['path']).fist != nil
+      end
+
+      files = data.map {|f| @metadata.get_file(f['path']).first}.select{|x| x != nil}
+      @metadata.suggestion(@publisher, files.map{|x| x.serialize}, from)
     end
 
     def receive_suggestion(data, from)
+      @suggestions = data.map {|x| x['from'] = from}
     end
 
     def receive_request(data, from)
+      data.each do |f|
+        Solvant.new(f['path']).upload_to(@publisher, from)
+      end
     end
   end
 end
