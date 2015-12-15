@@ -19,25 +19,29 @@ module BitBroker
       @metadata = Metadata.new( form_dirpath(opts[:path]))
 
       ### prepare brokers
-      config = {
+      @config = {
         :mqconfig => opts[:mqconfig],
         :label => opts[:name],
       }
-      @publisher = Publisher.new(config)
-      @subscriber = Subscriber.new(config)
+
+      @publisher = Publisher.new(@config)
     end
 
     def advertise
       @metadata.advertise(@publisher)
     end
 
-    def start_metadata_receiver
+    def start_receiver
       @metadata_receiver = do_start_metadata_receiver
+      @p_metadata_receiver = do_start_p_metadata_receiver
     end
 
-    def stop_metadata_receiver
-      @metadata_receiver.kill
-      @publisher.finish
+    def stop_receiver
+      @metadata_receiver.raise "stop"
+      @metadata_receiver.join
+
+      @p_metadata_receiver.raise "stop"
+      @p_metadata_receiver.join
     end
 
     private
@@ -50,12 +54,27 @@ module BitBroker
 
     def do_start_metadata_receiver
       Thread.new do
-        @subscriber.recv_metadata do |msg, from|
+        receiver = Subscriber.new(@config)
+        receiver.recv_metadata do |msg, from|
           case msg['type']
           when Metadata::TYPE_ADVERTISE then
             receive_advertise(msg['data'], from)
           when Metadata::TYPE_REQUEST_ALL then
             receive_request_all(msg['data'], from)
+          end
+        end
+      end
+    end
+
+    def do_start_p_metadata_receiver
+      Thread.new do
+        receiver = Subscriber.new(@config)
+        receiver.recv_p_metadata do |msg, from|
+          case msg['type']
+          when Metadata::TYPE_SUGGESTION then
+            receive_suggestion(msg['data'], from)
+          when Metadata::TYPE_REQUEST then
+            receive_request(msg['data'], from)
           end
         end
       end
