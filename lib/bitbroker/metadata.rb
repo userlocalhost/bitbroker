@@ -12,8 +12,11 @@ module BitBroker
         FileInfo.new(dir, path)
       end
     end
-    def get_file(path)
-      @files.select { |f| f == path }
+    def getfile_with_rpath(path)
+      @files.select { |f| f.relative_path == path }
+    end
+    def getfile_with_fpath(path)
+      @files.select { |f| f.path == path }
     end
 
     def advertise(broker)
@@ -30,7 +33,7 @@ module BitBroker
     end
     def suggestion(broker, files, dest)
       broker.send_p_metadata(dest, {
-        :type => TYPE_SUGGETSION,
+        :type => TYPE_SUGGESTION,
         :data => files,
       })
     end

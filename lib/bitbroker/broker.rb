@@ -37,7 +37,7 @@ module BitBroker
     def send_p_data(dest, data)
       send(RKEY_DATA + dest, data)
     end
-    def send_p_data(dest, data)
+    def send_p_metadata(dest, data)
       send(RKEY_METADATA + dest, data)
     end
 
@@ -47,7 +47,6 @@ module BitBroker
         'data' => data,
         'from' => Mac.addr,
       }), :routing_key => rkey)
-      finish
     end
   end
 

@@ -32,11 +32,12 @@ module BitBroker
     end
 
     def start_metadata_receiver
-      @pid_metadata_receiver = do_start_metadata_receiver
+      @metadata_receiver = do_start_metadata_receiver
     end
 
     def stop_metadata_receiver
-      Process.kill('TERM', @pid_metadata_receiver)
+      @metadata_receiver.kill
+      @publisher.finish
     end
 
     private
@@ -48,17 +49,13 @@ module BitBroker
     end
 
     def do_start_metadata_receiver
-      fork do
-        @subscriber.recv_metadata do |data, from|
-          case data['type']
+      Thread.new do
+        @subscriber.recv_metadata do |msg, from|
+          case msg['type']
           when Metadata::TYPE_ADVERTISE then
-            receive_advertise(data, from)
+            receive_advertise(msg['data'], from)
           when Metadata::TYPE_REQUEST_ALL then
-            receive_request_all(data, from)
-          when Metadata::TYPE_SUGGESTION then
-            receive_suggestion(data, from)
-          when Metadata::TYPE_REQEUST then
-            receive_request(data, from)
+            receive_request_all(msg['data'], from)
           end
         end
       end
@@ -66,7 +63,7 @@ module BitBroker
 
     def receive_advertise(data, from)
       def need_update?(remote)
-        case f = @metadata.get_file(remote['path']).first
+        case f = @metadata.getfile_with_rpath(remote['path']).first
         when nil
           true
         else
@@ -75,16 +72,19 @@ module BitBroker
         end
       end
 
-      @metadata.request_all(@publisher, data.select {|f| will_update?(f)})
+      @metadata.request_all(@publisher, data.select {|f| need_update?(f)})
     end
 
     def receive_request_all(data, from)
       def has_file?(remote)
-        @metadata.get_file(remote['path']).fist != nil
+        @metadata.getfile_with_rpath(remote['path']).first != nil
       end
 
-      files = data.map {|f| @metadata.get_file(f['path']).first}.select{|x| x != nil}
-      @metadata.suggestion(@publisher, files.map{|x| x.serialize}, from)
+      files = data.map {|f| @metadata.getfile_with_rpath(f['path']).first}.select{|x| x != nil}
+
+      if files != []
+        @metadata.suggestion(@publisher, files.map{|x| x.serialize}, from)
+      end
     end
 
     def receive_suggestion(data, from)
