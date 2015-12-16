@@ -1,13 +1,5 @@
 module BitBroker
   class ManagerImpl
-    WAINTING_TIMEOUT = 5
-
-    STATE_FINISH = 1<<0
-    STATE_WAIT_SUGGESTION = 1<<1
-    STATE_WAIT_DATA = 1<<2
-
-    COLLECTION_DELAY = 3
-
     def initialize(opts)
       # validate user created arguments
       validate(opts)
@@ -39,8 +31,17 @@ module BitBroker
           deficient = @deficients.first
           if deficient != nil
             candidates = @suggestions.select { |x| x['path'] == deficient['path'] }
-          end
+            if candidates.size > 0
+              candidate = candidates[rand(candidates.size)]
 
+              @metadata.request(@publisher, [candidate], candidate['from'])
+
+              @semaphore.synchronize do
+                @suggestions = @suggestions.reject {|x| x['path'] == deficient['path']}
+                @deficients.delete(deficient)
+              end
+            end
+          end
           Thread.pass
         end
       end
@@ -76,7 +77,7 @@ module BitBroker
 
     def receive_advertise(data, from)
       def need_update?(remote)
-        case f = @metadata.getfile_with_rpath(remote['path']).first
+        case f = @metadata.getfile_with_path(remote['path'])
         when nil
           true
         else
@@ -88,18 +89,17 @@ module BitBroker
       deficients = data.select {|f| need_update?(f)}
 
       @metadata.request_all(@publisher, deficients)
-      @semaphore.synchronize {
+      @semaphore.synchronize do
         @deficients += deficients
-      }
+      end
     end
 
     def receive_request_all(data, from)
       def has_file?(remote)
-        @metadata.getfile_with_rpath(remote['path']).first != nil
+        @metadata.getfile_with_path(remote['path']) != nil
       end
 
-      files = data.map {|f| @metadata.getfile_with_rpath(f['path']).first}.select{|x| x != nil}
-
+      files = data.map {|f| @metadata.getfile_with_path(f['path'])}.select{|x| x != nil}
       if files != []
         @metadata.suggestion(@publisher, files.map{|x| x.serialize}, from)
       end
@@ -107,14 +107,16 @@ module BitBroker
 
     def receive_suggestion(data, from)
       data.each {|x| x['from'] = from}
-      @semaphore.synchronize {
+      @semaphore.synchronize do
         @suggestions += data
-      }
+      end
     end
 
     def receive_request(data, from)
-      data.each do |f|
-        Solvant.new(f['path']).upload_to(@publisher, from)
+      data.each do |msg|
+        f = @metadata.getfile_with_path(msg['path'])
+
+        Solvant.new(f.path).upload_to(@publisher, from)
       end
     end
   end

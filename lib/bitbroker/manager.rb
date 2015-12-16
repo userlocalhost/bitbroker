@@ -34,5 +34,8 @@ module BitBroker
     def start_collector
       @collector = do_start_collector
     end
+    def stop_collector
+      @collector.kill
+    end
   end
 end

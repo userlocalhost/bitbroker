@@ -12,11 +12,8 @@ module BitBroker
         FileInfo.new(dir, path)
       end
     end
-    def getfile_with_rpath(path)
-      @files.select { |f| f.relative_path == path }
-    end
-    def getfile_with_fpath(path)
-      @files.select { |f| f.path == path }
+    def getfile_with_path(path)
+      @files.select{|f| f.relative_path == path }.first
     end
 
     def advertise(broker)
