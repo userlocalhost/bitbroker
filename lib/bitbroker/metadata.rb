@@ -2,6 +2,7 @@ require 'msgpack'
 
 module BitBroker
   class Metadata
+    # describes message types
     TYPE_ADVERTISE = 1<<0
     TYPE_REQUEST_ALL = 1<<1
     TYPE_SUGGESTION = 1<<2
@@ -12,10 +13,15 @@ module BitBroker
         FileInfo.new(dir, path)
       end
     end
-    def getfile_with_path(path)
-      @files.select{|f| f.r_path == path}.first
+    def get_with_rpath(r_path)
+      @files.select{|f| f.r_path == r_path}.first
     end
 
+    def remove_with_rpath(r_path)
+      @files.reject!{|f| f.r_path == r_path}
+    end
+
+    ### sending message for broker
     def advertise(broker)
       broker.send_metadata({
         :type => TYPE_ADVERTISE,
@@ -60,13 +66,23 @@ module BitBroker
     class FileInfo
       attr_reader :path
 
+      # describes file status
+      STATUS_REMOVED = 1 << 0
+
       def initialize(dir, path)
         @dir = dir
         @path = path
+        @status = 0
       end
       def r_path
         raise DiscomfortDirectoryStructure unless !!path.match(/^#{@dir}/)
         @path.split(@dir).last
+      end
+      def removed?
+        @status & STATUS_REMOVED
+      end
+      def remove
+        @status |= STATUS_REMOVED
       end
       def info
         File.new(@path)

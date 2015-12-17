@@ -80,7 +80,7 @@ module BitBroker
       Thread.new do
         receiver = Subscriber.new(@config)
         receiver.recv_data do |msg, from|
-          p msg
+          Solvant.load_binary(@config[:dirpath], binary)
         end
       end
     end
@@ -95,29 +95,49 @@ module BitBroker
 
     def receive_advertise(data, from)
       def need_update?(remote)
-        case f = @metadata.getfile_with_path(remote['path'])
-        when nil
+        case f = @metadata.get_with_rpath(remote['path'])
+        when nil # this means target file doesn't exist in local.
           true
         else
           f.info.size != remote['size'] and
-          f.info.mtime < Time.parse(remote['mtime'])
+          f.info.mtime < Time.parse(remote['mtime']) and
+          not f.removed?
         end
       end
 
+      def removed?(remote)
+        case f = @metadata.get_with_rpath(remote['path'])
+        when nil
+          false
+        else
+          f.removed?
+        end
+      end
+
+      # processing for deficient files
       deficients = data.select {|f| need_update?(f)}
 
       @metadata.request_all(@publisher, deficients)
       @semaphore.synchronize do
         @deficients += deficients
       end
+
+      # processing for removed files
+      data.selected({|f| removed?(f)}).each do |remote|
+        # remove FileInfo object which metadata has
+        @metadata.remove_with_rpath(remote['path'])
+
+        # remove actual file in local FS
+        Solvant.new(@cnofig[:dirpath], remote['path']).remove
+      end
     end
 
     def receive_request_all(data, from)
       def has_file?(remote)
-        @metadata.getfile_with_path(remote['path']) != nil
+        @metadata.get_with_rpath(remote['path']) != nil
       end
 
-      files = data.map {|f| @metadata.getfile_with_path(f['path'])}.select{|x| x != nil}
+      files = data.map {|f| @metadata.get_with_rpath(f['path'])}.select{|x| x != nil}
       if files != []
         @metadata.suggestion(@publisher, files.map{|x| x.serialize}, from)
       end
@@ -131,8 +151,8 @@ module BitBroker
     end
 
     def receive_request(data, from)
-      data.each do |msg|
-        f = @metadata.getfile_with_path(msg['path'])
+      data.each do |remote|
+        f = @metadata.get_with_rpath(remote['path'])
 
         Solvant.new(@config[:dirpath], f.r_path).upload_to(@publisher, from)
       end
