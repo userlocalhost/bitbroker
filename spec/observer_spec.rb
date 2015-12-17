@@ -10,7 +10,7 @@ describe BitBroker::Observer do
   end
 
   context "file operations" do
-    let(:temporary_path) { 'spec/.test/observer_test' }
+    let(:temporary_path) { 'spec/.test/observer' }
 
     before do
       dirpath = File.dirname(temporary_path)

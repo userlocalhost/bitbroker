@@ -1,18 +1,36 @@
 require 'spec_helper'
 
 describe BitBroker::Manager do
-  let(:shared_directory) { '' }
-  before do
+  DIRPATH = File.dirname(__FILE__) + '/.test/manager'
+
+  def mkdir
+    FileUtils.mkdir_p(DIRPATH) if not FileTest.exist? DIRPATH
+
+    # preparing existed files
+    ['foo', 'bar'].each do |path|
+      FileUtils.touch("#{DIRPATH}/#{path}")
+    end
+  end
+  def rmdir
+    Dir.foreach(DIRPATH) do |file|
+      File::delete("#{DIRPATH}/#{file}") if /^\.+$/ !~ file
+    end
+    Dir.rmdir(DIRPATH)
+  end
+
+  before(:all) do
+    mkdir
     @manager = BitBroker::Manager.new({
-      :path => File.dirname(__FILE__),
+      :path => DIRPATH,
       :name => 'spec-test',
       :mqconfig => MQCONFIG,
     })
 
-    @manager.start_metadata_receiver
+    @manager.start_receiver
   end
-  after do
-    @manager.stop_metadata_receiver
+  after(:all) do
+    @manager.stop_receiver
+    rmdir
   end
 
   context "receive advertisement" do
