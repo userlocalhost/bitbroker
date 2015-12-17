@@ -21,6 +21,9 @@ module BitBroker
     def start_receiver
       @metadata_receiver = do_start_metadata_receiver
       @p_metadata_receiver = do_start_p_metadata_receiver
+
+      @data_receiver = do_start_data_receiver
+      @p_data_receiver = do_start_p_data_receiver
     end
 
     def stop_receiver
@@ -29,6 +32,12 @@ module BitBroker
 
       @p_metadata_receiver.raise "stop"
       @p_metadata_receiver.join
+
+      @data_receiver.raise "stop"
+      @data_receiver.join
+
+      @p_data_receiver.raise "stop"
+      @p_data_receiver.join
     end
 
     def start_collector

@@ -7,21 +7,20 @@ module BitBroker
 
     attr_reader :chunks
 
-    def initialize(path, chunk_size = DEFAULT_CHUNK_SIZE)
+    def initialize(dirpath, r_path, chunk_size = DEFAULT_CHUNK_SIZE)
+      @f_path = "#{dirpath}/#{r_path}"
+
       # Validate target file at first
-      if not FileTest.exist? path
-        FileUtils.touch(path)
+      if not FileTest.exist? @f_path
+        FileUtils.touch(@f_path)
       end
 
-      # initialize parameters
-      @info = File.new(path)
-      @chunks = []
-
       # separate per chunk
-      chunk_splitter(@info.stat.size, chunk_size) do |offset, size|
-        #@chunks.push(Chunk.new(path, offset, size))
+      @chunks = []
+      chunk_splitter(File::Stat.new(@f_path).size, chunk_size) do |offset, size|
         @chunks.push(Chunk.new({
-          :path => path,
+          :r_path => r_path,
+          :f_path => @f_path,
           :size => size,
           :offset => offset,
           :chunk_size => chunk_size,
@@ -31,7 +30,8 @@ module BitBroker
 
     class Chunk
       def initialize(opts)
-        @path = opts[:path]
+        @r_path = opts[:r_path]
+        @f_path = opts[:f_path]
         @size = opts[:size]
         @offset = opts[:offset]
         @chunk_size = opts[:chunk_size]
@@ -39,8 +39,8 @@ module BitBroker
 
       def serialize
         MessagePack.pack({
-          'path' => @path,
-          'data' => File.binread(@path, @size, @offset * @chunk_size),
+          'path' => @r_path,
+          'data' => File.binread(@f_path, @size, @offset * @chunk_size),
           'offset' => @offset,
           'chunk_size' => @chunk_size,
         })
@@ -49,7 +49,7 @@ module BitBroker
 
     # This defines operations to manipulate actual Flie object on FileSystem
     def remove
-      File.unlink(@info.path)
+      File.unlink(@f_path)
     end
 
     def upload broker
@@ -64,11 +64,12 @@ module BitBroker
       end
     end
 
-    def load_binary binary
+    def self.load_binary(dirpath, binary)
       data = MessagePack.unpack(binary)
+      p data
       offset = data['offset'] * data['chunk_size']
 
-      File.binwrite(@info.path, data['data'], offset)
+      File.binwrite(dirpath + data['path'], data['data'], offset)
     end
   
     private

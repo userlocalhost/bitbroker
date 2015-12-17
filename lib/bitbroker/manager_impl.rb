@@ -4,13 +4,14 @@ module BitBroker
       # validate user created arguments
       validate(opts)
 
-      @metadata = Metadata.new(form_dirpath(opts[:path]))
-
       ### prepare brokers
       @config = {
         :mqconfig => opts[:mqconfig],
         :label => opts[:name],
+        :dirpath => form_dirpath(opts[:path]),
       }
+
+      @metadata = Metadata.new(@config[:dirpath])
 
       @publisher = Publisher.new(@config)
 
@@ -75,6 +76,23 @@ module BitBroker
       end
     end
 
+    def do_start_data_receiver
+      Thread.new do
+        receiver = Subscriber.new(@config)
+        receiver.recv_data do |msg, from|
+          p msg
+        end
+      end
+    end
+    def do_start_p_data_receiver
+      Thread.new do
+        receiver = Subscriber.new(@config)
+        receiver.recv_p_data do |binary, from|
+          Solvant.load_binary(@config[:dirpath], binary)
+        end
+      end
+    end
+
     def receive_advertise(data, from)
       def need_update?(remote)
         case f = @metadata.getfile_with_path(remote['path'])
@@ -116,7 +134,7 @@ module BitBroker
       data.each do |msg|
         f = @metadata.getfile_with_path(msg['path'])
 
-        Solvant.new(f.path).upload_to(@publisher, from)
+        Solvant.new(@config[:dirpath], f.r_path).upload_to(@publisher, from)
       end
     end
   end

@@ -13,7 +13,7 @@ module BitBroker
       end
     end
     def getfile_with_path(path)
-      @files.select{|f| f.relative_path == path }.first
+      @files.select{|f| f.r_path == path}.first
     end
 
     def advertise(broker)
@@ -64,7 +64,7 @@ module BitBroker
         @dir = dir
         @path = path
       end
-      def relative_path
+      def r_path
         raise DiscomfortDirectoryStructure unless !!path.match(/^#{@dir}/)
         @path.split(@dir).last
       end
@@ -74,7 +74,7 @@ module BitBroker
       def serialize
         file = File.new(@path)
         {
-          'path'  => relative_path,
+          'path'  => r_path,
           'size'  => file.size,
           'mtime' => file.mtime.to_s,
         }
