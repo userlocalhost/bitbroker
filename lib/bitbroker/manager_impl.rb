@@ -26,6 +26,40 @@ module BitBroker
       raise InvalidArgument("Specified path is not directory") unless File.directory?(opts[:path])
     end
 
+    def do_start_observer
+      def handle_add(path)
+        rpath = @metadata.get_rpath(path)
+
+        # create metadata info
+        @metadata.create(rpath)
+
+        # upload target file
+        Solvant.new(@metadata.dir, rpath).upload
+      end
+
+      def handle_mod(path)
+        rpath = @metadata.get_rpath(path)
+
+        # upload target file
+        Solvant.new(@metadata.dir, rpath).upload
+      end
+
+      def handle_rem(path)
+        rpath = @metadata.get_rpath(path)
+
+        @metadata.remove_with_path(rpath)
+        @metadata.advertise(@publisher)
+      end
+
+      Thread.new do
+        Observer.new(@config[:dirpath]) do |mod, add, rem|
+          mod.each {|x| handle_mod(x)}
+          add.each {|x| handle_add(x)}
+          rem.each {|x| handle_rem(x)}
+        end
+      end
+    end
+
     def do_start_collector
       Thread.new do
         loop do
@@ -95,7 +129,7 @@ module BitBroker
 
     def receive_advertise(data, from)
       def need_update?(remote)
-        case f = @metadata.get_with_rpath(remote['path'])
+        case f = @metadata.get_with_path(remote['path'])
         when nil # this means target file doesn't exist in local.
           true
         else
@@ -106,11 +140,11 @@ module BitBroker
       end
 
       def removed?(remote)
-        case f = @metadata.get_with_rpath(remote['path'])
+        case f = @metadata.get_with_path(remote['path'])
         when nil
           false
         else
-          f.removed?
+          remote['status'].to_i & Metadata::FileInfo::STATUS_REMOVED > 0
         end
       end
 
@@ -123,9 +157,9 @@ module BitBroker
       end
 
       # processing for removed files
-      data.selected({|f| removed?(f)}).each do |remote|
+      data.select{|f| removed?(f)}.each do |remote|
         # remove FileInfo object which metadata has
-        @metadata.remove_with_rpath(remote['path'])
+        @metadata.remove_with_path(remote['path'])
 
         # remove actual file in local FS
         Solvant.new(@cnofig[:dirpath], remote['path']).remove
@@ -134,10 +168,10 @@ module BitBroker
 
     def receive_request_all(data, from)
       def has_file?(remote)
-        @metadata.get_with_rpath(remote['path']) != nil
+        @metadata.get_with_path(remote['path']) != nil
       end
 
-      files = data.map {|f| @metadata.get_with_rpath(f['path'])}.select{|x| x != nil}
+      files = data.map {|f| @metadata.get_with_path(f['path'])}.select{|x| x != nil}
       if files != []
         @metadata.suggestion(@publisher, files.map{|x| x.serialize}, from)
       end
@@ -152,9 +186,9 @@ module BitBroker
 
     def receive_request(data, from)
       data.each do |remote|
-        f = @metadata.get_with_rpath(remote['path'])
+        f = @metadata.get_with_path(remote['path'])
 
-        Solvant.new(@config[:dirpath], f.r_path).upload_to(@publisher, from)
+        Solvant.new(@config[:dirpath], f.path).upload_to(@publisher, from)
       end
     end
   end

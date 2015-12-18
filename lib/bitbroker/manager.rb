@@ -18,6 +18,14 @@ module BitBroker
       @metadata.advertise(@publisher)
     end
 
+    def start_observer
+      @observer = do_start_observer
+    end
+    def stop_observer
+      @observer.raise 'stop'
+      @observer.join
+    end
+
     def start_receiver
       @metadata_receiver = do_start_metadata_receiver
       @p_metadata_receiver = do_start_p_metadata_receiver

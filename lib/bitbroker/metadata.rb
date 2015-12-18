@@ -8,17 +8,27 @@ module BitBroker
     TYPE_SUGGESTION = 1<<2
     TYPE_REQUEST = 1<<3
 
+    attr_reader :dir
+
     def initialize(dir)
-      @files = scanning_files(dir).map do |path|
-        FileInfo.new(dir, path)
+      @dir = dir
+      @files = scanning_files(@dir).map do |path|
+        FileInfo.new(@dir, get_rpath(path))
       end
     end
-    def get_with_rpath(r_path)
-      @files.select{|f| f.r_path == r_path}.first
-    end
 
-    def remove_with_rpath(r_path)
-      @files.reject!{|f| f.r_path == r_path}
+    def get_with_path(path)
+      @files.select{|f| f.path == path}.first
+    end
+    def remove_with_path(path)
+      @files.reject!{|f| f.path == path}
+    end
+    def create(path)
+      if get_with_path(path) == nil
+        @files.push(FileInfo.new(@dir, path))
+      else
+        puts "Warning: #{path} is already created"
+      end
     end
 
     ### sending message for broker
@@ -47,6 +57,12 @@ module BitBroker
       })
     end
 
+    ### utility methods
+    def get_rpath(path)
+      raise DiscomfortDirectoryStructure unless !!path.match(/^#{@dir}/)
+      path.split(@dir).last
+    end
+
     private
     def scanning_files(current_dir, &block)
       arr = []
@@ -69,30 +85,27 @@ module BitBroker
       # describes file status
       STATUS_REMOVED = 1 << 0
 
-      def initialize(dir, path)
-        @dir = dir
-        @path = path
+      def initialize(dirpath, filepath)
+        @fpath = "#{dirpath}/#{filepath}"
+        @path = filepath
         @status = 0
       end
-      def r_path
-        raise DiscomfortDirectoryStructure unless !!path.match(/^#{@dir}/)
-        @path.split(@dir).last
-      end
       def removed?
-        @status & STATUS_REMOVED
+        @status & STATUS_REMOVED > 0
       end
       def remove
         @status |= STATUS_REMOVED
       end
       def info
-        File.new(@path)
+        File.new(@fpath)
       end
       def serialize
-        file = File.new(@path)
+        file = File.new(@fpath)
         {
-          'path'  => r_path,
+          'path'  => @path,
           'size'  => file.size,
           'mtime' => file.mtime.to_s,
+          'status' => @status,
         }
       end
     end
