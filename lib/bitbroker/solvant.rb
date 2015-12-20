@@ -66,7 +66,6 @@ module BitBroker
 
     def self.load_binary(dirpath, binary)
       data = MessagePack.unpack(binary)
-      p data
       offset = data['offset'] * data['chunk_size']
 
       File.binwrite(dirpath + data['path'], data['data'], offset)

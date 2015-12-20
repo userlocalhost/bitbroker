@@ -28,23 +28,29 @@ module BitBroker
 
     def do_start_observer
       def handle_add(path)
+        Log.debug("[ManagerImpl] (handle_add) path:#{path}")
+
         rpath = @metadata.get_rpath(path)
 
         # create metadata info
         @metadata.create(rpath)
 
         # upload target file
-        Solvant.new(@metadata.dir, rpath).upload
+        Solvant.new(@metadata.dir, rpath).upload(@publisher)
       end
 
       def handle_mod(path)
+        Log.debug("[ManagerImpl] (handle_mod) path:#{path}")
+
         rpath = @metadata.get_rpath(path)
 
         # upload target file
-        Solvant.new(@metadata.dir, rpath).upload
+        Solvant.new(@metadata.dir, rpath).upload(@publisher)
       end
 
       def handle_rem(path)
+        Log.debug("[ManagerImpl] (handle_rem) path:#{path}")
+
         rpath = @metadata.get_rpath(path)
 
         @metadata.remove_with_path(rpath)
@@ -113,7 +119,7 @@ module BitBroker
     def do_start_data_receiver
       Thread.new do
         receiver = Subscriber.new(@config)
-        receiver.recv_data do |msg, from|
+        receiver.recv_data do |binary, from|
           Solvant.load_binary(@config[:dirpath], binary)
         end
       end
@@ -147,6 +153,7 @@ module BitBroker
           remote['status'].to_i & Metadata::FileInfo::STATUS_REMOVED > 0
         end
       end
+      Log.debug("[ManagerImpl] (receive_advertise) <#{from}> data:#{data}")
 
       # processing for deficient files
       deficients = data.select {|f| need_update?(f)}
@@ -170,6 +177,7 @@ module BitBroker
       def has_file?(remote)
         @metadata.get_with_path(remote['path']) != nil
       end
+      Log.debug("[ManagerImpl] (receive_request_all) <#{from}> data:#{data}")
 
       files = data.map {|f| @metadata.get_with_path(f['path'])}.select{|x| x != nil}
       if files != []
@@ -178,6 +186,8 @@ module BitBroker
     end
 
     def receive_suggestion(data, from)
+      Log.debug("[ManagerImpl] (receive_suggestion) <#{from}> data:#{data}")
+
       data.each {|x| x['from'] = from}
       @semaphore.synchronize do
         @suggestions += data
@@ -185,6 +195,8 @@ module BitBroker
     end
 
     def receive_request(data, from)
+      Log.debug("[ManagerImpl] (receive_request) <#{from}> data:#{data}")
+
       data.each do |remote|
         f = @metadata.get_with_path(remote['path'])
 
