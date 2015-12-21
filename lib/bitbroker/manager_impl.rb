@@ -17,6 +17,9 @@ module BitBroker
 
       @deficients = @suggestions = []
       @semaphore = Mutex.new
+
+      # internal variable in this class to know who modified/crated file
+      @file_activities = []
     end
 
     def form_dirpath path
@@ -31,34 +34,40 @@ module BitBroker
         Log.debug("[ManagerImpl] (handle_add) path:#{path}")
 
         rpath = @metadata.get_rpath(path)
+        if obj = @file_activities.find {|x| x.path == rpath}
+          @file_activities.delete(obj)
+        else
+          # create metadata info
+          @metadata.create(rpath)
 
-        # create metadata info
-        @metadata.create(rpath)
-
-        # upload target file
-        Solvant.new(@metadata.dir, rpath).upload(@publisher)
+          # upload target file
+          Solvant.new(@metadata.dir, rpath).upload(@publisher)
+        end
       end
 
       def handle_mod(path)
         Log.debug("[ManagerImpl] (handle_mod) path:#{path}")
 
         rpath = @metadata.get_rpath(path)
-
-        # upload target file
-        Solvant.new(@metadata.dir, rpath).upload(@publisher)
+        if obj = @file_activities.find {|x| x.path == rpath}
+          @file_activities.delete(obj)
+        else
+          # upload target file
+          Solvant.new(@metadata.dir, rpath).upload(@publisher)
+        end
       end
 
       def handle_rem(path)
-        Log.debug("[ManagerImpl] (handle_rem) path:#{path}")
-
         rpath = @metadata.get_rpath(path)
 
         #@metadata.remove_with_path(rpath)
         file = @metadata.get_with_path(rpath)
+        if file != nil
+          Log.debug("[ManagerImpl] (handle_rem) path:#{path}")
 
-        file.remove
-
-        @metadata.advertise(@publisher)
+          file.remove
+          @metadata.advertise(@publisher)
+        end
       end
 
       Thread.new do
@@ -124,7 +133,12 @@ module BitBroker
       Thread.new do
         receiver = Subscriber.new(@config)
         receiver.recv_data do |binary, from|
+          data = MessagePack.unpack(binary)
+          fpath = "#{@config[:dirpath]}/#{data['path']}"
+
           Solvant.load_binary(@config[:dirpath], binary)
+
+          @file_activities.push(FileActivity.create(fpath))
         end
       end
     end
@@ -132,7 +146,12 @@ module BitBroker
       Thread.new do
         receiver = Subscriber.new(@config)
         receiver.recv_p_data do |binary, from|
+          data = MessagePack.unpack(binary)
+          fpath = "#{@config[:dirpath]}/#{data['path']}"
+
           Solvant.load_binary(@config[:dirpath], binary)
+
+          @file_activities.push(FileActivity.create(fpath))
         end
       end
     end
@@ -143,8 +162,8 @@ module BitBroker
         when nil # this means target file doesn't exist in local.
           true
         else
-          f.info.size != remote['size'] and
-          f.info.mtime < Time.parse(remote['mtime']) and
+          f.size != remote['size'] and
+          f.mtime < Time.parse(remote['mtime']) and
           not f.removed?
         end
       end
@@ -170,6 +189,9 @@ module BitBroker
       # processing for removed files
       data.select{|f| removed?(f)}.each do |remote|
         Log.debug("[ManagerImpl] (receive_advertise) remove: #{remote}")
+
+        # set file_activities
+        @file_activities.push(FileActivity.remove(remote['path']))
 
         # remove FileInfo object which metadata has
         @metadata.remove_with_path(remote['path'])
@@ -207,6 +229,30 @@ module BitBroker
         f = @metadata.get_with_path(remote['path'])
 
         Solvant.new(@config[:dirpath], f.path).upload_to(@publisher, from)
+      end
+    end
+
+    class FileActivity
+      STATUS_REMOVED = 1 << 0
+
+      attr_reader :path, :mtime
+
+      def initialize(path, mtime, status = 0)
+        @path = path
+        @mtime = mtime
+        @status = status
+      end
+
+      def removed?
+        @status & STATUS_REMOVED > 0
+      end
+
+      def self.create(path)
+        self.new(path, File.mtime(path))
+      end
+
+      def self.remove(path)
+        self.new(path, nil, STATUS_REMOVED)
       end
     end
   end

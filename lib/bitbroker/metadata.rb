@@ -35,7 +35,7 @@ module BitBroker
     def advertise(broker)
       broker.send_metadata({
         :type => TYPE_ADVERTISE,
-        :data => @files.map{|x| x.serialize },
+        :data => @files.map{|x| x.to_h },
       })
     end
     def request_all(broker, files)
@@ -80,7 +80,7 @@ module BitBroker
       arr
     end
     class FileInfo
-      attr_reader :path
+      attr_reader :path, :size, :mtime
 
       # describes file status
       STATUS_REMOVED = 1 << 0
@@ -89,6 +89,19 @@ module BitBroker
         @fpath = "#{dirpath}/#{filepath}"
         @path = filepath
         @status = 0
+
+        self.update
+      end
+      def update
+        if FileTest.exist? @fpath
+          file = File.new(@fpath)
+
+          @size = file.size
+          @mtime = file.mtime
+        else
+          @size = 0
+          @mtime = Time.new(0)
+        end
       end
       def removed?
         @status & STATUS_REMOVED > 0
@@ -96,23 +109,13 @@ module BitBroker
       def remove
         @status |= STATUS_REMOVED
       end
-      def info
-        File.new(@fpath)
-      end
-      def serialize
-        ret = {'path' => @path, 'status' => @status}
-
-        if FileTest.exist? @fpath
-          file = File.new(@fpath)
-
-          ret['size'] = file.size
-          ret['mtime'] = file.mtime.to_s
-        else
-          ret['size'] = 0
-          ret['mtime'] = Time.new(0).to_s
-        end
-
-        ret
+      def to_h
+        {
+          'path' => @path,
+          'status' => @status,
+          'size' => @size,
+          'mtime' => @mtime.to_s,
+        }
       end
     end
   end
