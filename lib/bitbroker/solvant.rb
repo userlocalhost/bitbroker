@@ -28,25 +28,6 @@ module BitBroker
       end
     end
 
-    class Chunk
-      def initialize(opts)
-        @r_path = opts[:r_path]
-        @f_path = opts[:f_path]
-        @size = opts[:size]
-        @offset = opts[:offset]
-        @chunk_size = opts[:chunk_size]
-      end
-
-      def serialize
-        MessagePack.pack({
-          'path' => @r_path,
-          'data' => File.binread(@f_path, @size, @offset * @chunk_size),
-          'offset' => @offset,
-          'chunk_size' => @chunk_size,
-        })
-      end
-    end
-
     # This defines operations to manipulate actual Flie object on FileSystem
     def remove
       File.unlink(@f_path)
@@ -78,6 +59,25 @@ module BitBroker
         size = (i == last) ? total_size - chunk_size * i : chunk_size
 
         block.call(i, size)
+      end
+    end
+
+    class Chunk
+      def initialize(opts)
+        @r_path = opts[:r_path]
+        @f_path = opts[:f_path]
+        @size = opts[:size]
+        @offset = opts[:offset]
+        @chunk_size = opts[:chunk_size]
+      end
+
+      def serialize
+        MessagePack.pack({
+          'path' => @r_path,
+          'data' => File.binread(@f_path, @size, @offset * @chunk_size),
+          'offset' => @offset,
+          'chunk_size' => @chunk_size,
+        })
       end
     end
   end

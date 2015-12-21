@@ -100,13 +100,19 @@ module BitBroker
         File.new(@fpath)
       end
       def serialize
-        file = File.new(@fpath)
-        {
-          'path'  => @path,
-          'size'  => file.size,
-          'mtime' => file.mtime.to_s,
-          'status' => @status,
-        }
+        ret = {'path' => @path, 'status' => @status}
+
+        if FileTest.exist? @fpath
+          file = File.new(@fpath)
+
+          ret['size'] = file.size
+          ret['mtime'] = file.mtime.to_s
+        else
+          ret['size'] = 0
+          ret['mtime'] = Time.new(0).to_s
+        end
+
+        ret
       end
     end
   end

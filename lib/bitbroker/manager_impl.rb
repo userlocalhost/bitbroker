@@ -53,7 +53,11 @@ module BitBroker
 
         rpath = @metadata.get_rpath(path)
 
-        @metadata.remove_with_path(rpath)
+        #@metadata.remove_with_path(rpath)
+        file = @metadata.get_with_path(rpath)
+
+        file.remove
+
         @metadata.advertise(@publisher)
       end
 
@@ -165,11 +169,13 @@ module BitBroker
 
       # processing for removed files
       data.select{|f| removed?(f)}.each do |remote|
+        Log.debug("[ManagerImpl] (receive_advertise) remove: #{remote}")
+
         # remove FileInfo object which metadata has
         @metadata.remove_with_path(remote['path'])
 
         # remove actual file in local FS
-        Solvant.new(@cnofig[:dirpath], remote['path']).remove
+        Solvant.new(@config[:dirpath], remote['path']).remove
       end
     end
 
