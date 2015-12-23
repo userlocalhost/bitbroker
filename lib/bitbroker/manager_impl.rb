@@ -133,12 +133,13 @@ module BitBroker
       Thread.new do
         receiver = Subscriber.new(@config)
         receiver.recv_data do |binary, from|
-          data = MessagePack.unpack(binary)
-          fpath = "#{@config[:dirpath]}/#{data['path']}"
+          path = MessagePack.unpack(binary)['path']
+
+          Log.debug("[ManagerImpl] (data_receiver) path: #{path}")
+
+          @file_activities.push(FileActivity.create(path))
 
           Solvant.load_binary(@config[:dirpath], binary)
-
-          @file_activities.push(FileActivity.create(fpath))
         end
       end
     end
@@ -146,12 +147,13 @@ module BitBroker
       Thread.new do
         receiver = Subscriber.new(@config)
         receiver.recv_p_data do |binary, from|
-          data = MessagePack.unpack(binary)
-          fpath = "#{@config[:dirpath]}/#{data['path']}"
+          path = MessagePack.unpack(binary)['path']
+
+          Log.debug("[ManagerImpl] (p_data_receiver) path: #{path}")
+
+          @file_activities.push(FileActivity.create(path))
 
           Solvant.load_binary(@config[:dirpath], binary)
-
-          @file_activities.push(FileActivity.create(fpath))
         end
       end
     end
@@ -209,6 +211,7 @@ module BitBroker
 
       files = data.map {|f| @metadata.get_with_path(f['path'])}.select{|x| x != nil}
       if files != []
+        Log.debug("[ManagerImpl] (receive_request_all) files:#{files}")
         @metadata.suggestion(@publisher, files.map{|x| x.serialize}, from)
       end
     end
@@ -248,7 +251,7 @@ module BitBroker
       end
 
       def self.create(path)
-        self.new(path, File.mtime(path))
+        self.new(path, FileTest.exist?(path) ? File.mtime(path) : Time.now)
       end
 
       def self.remove(path)
