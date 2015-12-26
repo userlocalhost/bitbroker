@@ -1,11 +1,13 @@
 require 'bunny'
 require 'msgpack'
+require 'openssl'
 
 module BitBroker
   # This method communicate with AMQP for transmitting and receiving data
   class Broker
     RKEY_DATA = 'data'
     RKEY_METADATA = 'metadata'
+    ENCRYPT_ALGORITHM = "AES-256-CBC"
 
     def initialize(config)
       @connection = Bunny.new(:host     => config[:mqconfig]['host'],
@@ -15,6 +17,7 @@ module BitBroker
       @connection.start
       @channel = @connection.create_channel
       @exchange = @channel.direct(config[:label])
+      @passwd = config[:passwd].to_s + config[:label]
     end
 
     def finish
@@ -43,10 +46,17 @@ module BitBroker
 
     private
     def send(rkey, data)
-      @exchange.publish(MessagePack.pack({
+      @exchange.publish(encode(MessagePack.pack({
         'data' => data,
         'from' => Mac.addr,
-      }), :routing_key => rkey)
+      })), :routing_key => rkey)
+    end
+
+    def encode(data)
+      cipher = OpenSSL::Cipher::Cipher.new(ENCRYPT_ALGORITHM)
+      cipher.encrypt
+      cipher.pkcs5_keyivgen(@passwd)
+      cipher.update(data) + cipher.final
     end
   end
 
@@ -76,15 +86,23 @@ module BitBroker
       queue.bind(@exchange, :routing_key => rkey)
       begin
         queue.subscribe(:block => true) do |info, prop, binary|
-          msg = MessagePack.unpack(binary)
+          msg = MessagePack.unpack(decode(binary))
 
           if msg['from'] != Mac.addr
             block.call(msg['data'], msg['from'])
           end
         end
+      rescue OpenSSL::Cipher::CipherError => e
+        Log.warn("[Subscriber] #{e.to_s}")
       rescue Exception => _
         finish
       end
+    end
+    def decode(encrypted_data)
+      cipher = OpenSSL::Cipher::Cipher.new(ENCRYPT_ALGORITHM)
+      cipher.decrypt
+      cipher.pkcs5_keyivgen(@passwd)
+      cipher.update(encrypted_data) + cipher.final
     end
   end
 end
