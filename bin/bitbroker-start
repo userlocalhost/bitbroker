@@ -1,0 +1,37 @@
+#!/usr/bin/env ruby
+
+require 'bitbroker'
+
+PIDFILE = "/tmp/bitbroker.pid"
+BitBroker::Log.level = Logger::DEBUG
+
+if FileTest.exists? PIDFILE
+  puts "(NOTICE) bitbroker is now running"
+  exit
+end
+
+BitBroker::Config['directories'].each do |entry|
+  fork do
+    Process.daemon
+    File.open(PIDFILE, 'a') do |f|
+      f.write("#{$$}\n")
+    end
+
+    begin
+      manager = BitBroker::Manager.new({
+        :mqconfig => BitBroker::Config['mqconfig'],
+        :path => entry['path'],
+        :name => entry['name'],
+      })
+  
+      manager.start
+      manager.advertise
+  
+      loop {}
+    rescue Exception => _
+      manager.stop
+    end
+  end
+end
+
+puts "bitbroker is started."

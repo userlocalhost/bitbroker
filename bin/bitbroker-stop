@@ -1,0 +1,31 @@
+#!/usr/bin/env ruby
+
+PIDFILE = "/tmp/bitbroker.pid"
+
+def is_stopped? pid
+  begin
+    Process.getpgid(pid)
+    false
+  rescue Errno::ESRCH => _
+    true
+  end
+end
+
+unless FileTest.exists? PIDFILE
+  puts "(NOTICE) bitbroker is not running"
+  exit
+end
+
+pids = File.read(PIDFILE).split(/\n/).map{|x| x.to_i}
+pids.each do |pid|
+  Process.kill("TERM", pid)
+end
+
+while pids.size > 0
+  pid = pids.shift
+  unless is_stopped? pid
+    pids.push(pid)
+  end
+end
+
+puts "bitbroker is stopped."

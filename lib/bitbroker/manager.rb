@@ -18,23 +18,27 @@ module BitBroker
       @metadata.advertise(@publisher)
     end
 
-    def start_observer
+    def start
+      # start observer that watches changing of local file-system
       @observer = do_start_observer
-    end
-    def stop_observer
-      @observer.raise 'stop'
-      @observer.join
-    end
 
-    def start_receiver
+      # start receivers that consume message of remote nodes
       @metadata_receiver = do_start_metadata_receiver
       @p_metadata_receiver = do_start_p_metadata_receiver
 
       @data_receiver = do_start_data_receiver
       @p_data_receiver = do_start_p_data_receiver
+
+      # start collector that maintains the shared directory will be same with remote ones.
+      @collector = do_start_collector
     end
 
-    def stop_receiver
+    def stop
+      # for observer
+      @observer.raise 'stop'
+      @observer.join
+
+      # for receiver
       @metadata_receiver.raise "stop"
       @metadata_receiver.join
 
@@ -46,12 +50,8 @@ module BitBroker
 
       @p_data_receiver.raise "stop"
       @p_data_receiver.join
-    end
 
-    def start_collector
-      @collector = do_start_collector
-    end
-    def stop_collector
+      # for collector
       @collector.kill
     end
   end
