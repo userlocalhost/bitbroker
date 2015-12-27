@@ -18,11 +18,18 @@ describe BitBroker::Manager do
     Dir.rmdir(DIRPATH)
   end
 
+  def send(rkey, data)
+    publisher = BitBroker::Publisher.new({
+      :mqconfig => MQCONFIG,
+      :label => 'test-manager',
+    })
+  end
+
   before(:all) do
     mkdir
     @manager = BitBroker::Manager.new({
       :path => DIRPATH,
-      :name => 'spec-test',
+      :name => 'test-manager',
       :mqconfig => MQCONFIG,
     })
 
