@@ -54,6 +54,11 @@ module BitBroker
         else
           # upload target file
           Solvant.new(@metadata.dir, rpath).upload(@publisher)
+
+          # update fileinfo
+          @metadata.get_with_path(rpath).update
+
+          @metadata.advertise(@publisher)
         end
       end
 
@@ -159,13 +164,12 @@ module BitBroker
     end
 
     def receive_advertise(data, from)
-      def need_update?(remote)
+      def updated?(remote)
         case f = @metadata.get_with_path(remote['path'])
         when nil # this means target file doesn't exist in local.
           true
         else
           f.size != remote['size'] and
-          f.mtime < Time.parse(remote['mtime']) and
           not f.removed?
         end
       end
@@ -180,26 +184,38 @@ module BitBroker
       end
       Log.debug("[ManagerImpl] (receive_advertise) <#{from}> data:#{data}")
 
-      # processing for deficient files
-      deficients = data.select {|f| need_update?(f)}
+      deficients = []
+      data.each do |remote|
+        if removed? remote
+          Log.debug("[ManagerImpl] (receive_advertise) remove: #{remote}")
 
-      @metadata.request_all(@publisher, deficients)
-      @semaphore.synchronize do
-        @deficients += deficients
+          # set file_activities
+          @file_activities.push(FileActivity.remove(remote['path']))
+
+          # remove FileInfo object which metadata has
+          @metadata.remove_with_path(remote['path'])
+
+          # remove actual file in local FS
+          Solvant.new(@config[:dirpath], remote['path']).remove
+        else updated? remote
+          deficients.push(remote)
+
+          fpath = "#{@config[:dirpath]}/#{remote['path']}"
+          if FileTest.exist? fpath
+            Log.debug("[ManagerImpl] trancated(#{fpath}, #{remote['size']})")
+
+            # truncate files when target file is cut down
+            File.truncate(fpath, remote['size'])
+          end
+        end
       end
 
-      # processing for removed files
-      data.select{|f| removed?(f)}.each do |remote|
-        Log.debug("[ManagerImpl] (receive_advertise) remove: #{remote}")
+      # request all deficients files
+      @metadata.request_all(@publisher, deficients)
 
-        # set file_activities
-        @file_activities.push(FileActivity.remove(remote['path']))
-
-        # remove FileInfo object which metadata has
-        @metadata.remove_with_path(remote['path'])
-
-        # remove actual file in local FS
-        Solvant.new(@config[:dirpath], remote['path']).remove
+      # record deficient files to get it from remote node
+      @semaphore.synchronize do
+        @deficients += deficients
       end
     end
 
@@ -212,7 +228,7 @@ module BitBroker
       files = data.map {|f| @metadata.get_with_path(f['path'])}.select{|x| x != nil}
       if files != []
         Log.debug("[ManagerImpl] (receive_request_all) files:#{files}")
-        @metadata.suggestion(@publisher, files.map{|x| x.serialize}, from)
+        @metadata.suggestion(@publisher, files.map{|x| x.to_h}, from)
       end
     end
 
