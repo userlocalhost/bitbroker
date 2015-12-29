@@ -36,8 +36,11 @@ describe BitBroker::Manager do
     @manager.start_receiver
   end
   after(:all) do
-    @manager.stop_receiver
-    rmdir
+    begin
+      @manager.stop_receiver
+    ensure
+      rmdir
+    end
   end
 
   context "receive advertisement" do

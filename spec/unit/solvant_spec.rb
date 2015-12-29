@@ -8,6 +8,9 @@ describe BitBroker::Solvant do
   end
 
   context "with existed file" do
+    after do
+      File.unlink(temporary_path) if FileTest.exists? temporary_path
+    end
     it 'specifies a small file' do
       solvant = BitBroker::Solvant.new(__FILE__)
       expect(solvant.chunks.count).to eq(1)
@@ -17,8 +20,6 @@ describe BitBroker::Solvant do
       solvant = BitBroker::Solvant.new(temporary_path)
 
       expect(solvant.chunks.count).to be > 1
-
-      File.unlink(temporary_path)
     end
   end
 
