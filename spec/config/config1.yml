@@ -1,0 +1,9 @@
+mqconfig:
+  user: guest
+  host: localhost
+  vhost: /
+  passwd: guest
+
+directories:
+  - name: test-dir
+    path: /tmp/bitbroker-test1

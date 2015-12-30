@@ -1,6 +1,8 @@
 #!/usr/bin/env ruby
 
-PIDFILE = "/tmp/bitbroker.pid"
+require 'bitbroker'
+
+PIDFILE = BitBroker::Config.path_pid
 
 def is_stopped? pid
   begin
@@ -27,5 +29,6 @@ while pids.size > 0
     pids.push(pid)
   end
 end
+File.unlink PIDFILE
 
 puts "bitbroker is stopped."

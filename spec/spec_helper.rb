@@ -11,3 +11,9 @@ MQCONFIG = {
 }
 
 Dir.glob("spec/steps/**/*steps.rb") { |f| load f, true }
+
+RSpec.configure do |config|
+  config.after(:type => :feature) do
+    ## some after processing
+  end
+end

@@ -2,7 +2,7 @@
 
 require 'bitbroker'
 
-PIDFILE = "/tmp/bitbroker.pid"
+PIDFILE = BitBroker::Config.path_pid
 BitBroker::Log.level = Logger::DEBUG
 
 if FileTest.exists? PIDFILE
@@ -10,28 +10,6 @@ if FileTest.exists? PIDFILE
   exit
 end
 
-BitBroker::Config['directories'].each do |entry|
-  fork do
-    Process.daemon
-    File.open(PIDFILE, 'a') do |f|
-      f.write("#{$$}\n")
-    end
-
-    begin
-      manager = BitBroker::Manager.new({
-        :mqconfig => BitBroker::Config['mqconfig'],
-        :path => entry['path'],
-        :name => entry['name'],
-      })
-  
-      manager.start
-      manager.advertise
-  
-      loop {}
-    rescue Exception => _
-      manager.stop
-    end
-  end
-end
+BitBroker::Manager.start
 
 puts "bitbroker is started."

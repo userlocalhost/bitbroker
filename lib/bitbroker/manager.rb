@@ -10,6 +10,32 @@ module BitBroker
   ### This object is created for each directory
   class Manager < ManagerImpl
 
+    def self.start
+      BitBroker::Config['directories'].each do |entry|
+        fork do
+          Process.daemon
+          File.open(PIDFILE, 'a') do |f|
+            f.write("#{$$}\n")
+          end
+
+          begin
+            manager = BitBroker::Manager.new({
+              :mqconfig => BitBroker::Config['mqconfig'],
+              :path => entry['path'],
+              :name => entry['name'],
+            })
+
+            manager.start
+            manager.advertise
+
+            loop {}
+          rescue Exception => _
+            manager.stop
+          end
+        end
+      end
+    end
+
     def initialize(opts)
       super(opts)
     end
