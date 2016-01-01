@@ -1,15 +1,16 @@
 #!/usr/bin/env ruby
 
 require 'bitbroker'
+require 'colorize'
 
 PIDFILE = BitBroker::Config.path_pid
 BitBroker::Log.level = Logger::DEBUG
 
 if FileTest.exists? PIDFILE
-  puts "(NOTICE) bitbroker is now running"
+  puts "BitBroker is now running".yellow
   exit
 end
 
 BitBroker::Manager.start
 
-puts "bitbroker is started."
+puts "scucessed to start BitBroker".green

@@ -1,0 +1,22 @@
+#!/usr/bin/env ruby
+
+require 'fileutils'
+require 'colorize'
+
+TEMPLATE_PATH = "#{File.dirname(__FILE__)}/../static/.bitbroker"
+BASEDIR = "#{ENV['HOME']}/.bitbroker"
+
+if FileTest.exist? BASEDIR
+  puts "BitBroker is already initialized".yellow
+  exit 1
+end
+
+# initialize configuration dir
+FileUtils.cp_r(TEMPLATE_PATH, BASEDIR)
+puts "created #{BASEDIR}".green
+puts <<EOS
+
+---
+Please rename the file of 'config.example' to 'config'
+in #{BASEDIR}, and modify it as appropriate.
+EOS

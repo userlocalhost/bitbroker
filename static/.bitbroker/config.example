@@ -1,0 +1,29 @@
+### NOTE ###
+# This configuration file is written in YAML format. 
+# The configuration of bitbroker is consist of two components. 
+#
+# - One is the configuration of MQ (Message Queue) environment 
+#   which is described as 'mqconfig' in this file.
+# - Another is the configurations about directory which is shared
+#   with nodes you want to. This is described as 'directories'.
+#
+
+### MQ configuration ###
+# This configuration is mandatory for running bitbroker
+#
+mqconfig:
+  user: mq-user
+  host: mq-host
+  vhost: /
+  passwd: mq-password
+
+### Directory Configuration ###
+# This configuration has two attributes that are 'name' and 'path'
+#
+# - 'path' describes shared-directory path you want to share in the local machine. 
+# - 'name' describes a label of shared-directory. This attribute must be shared 
+#    with each nodes corresponding to the shared-directory.
+#
+directories:
+#  - name: label-of-shared-directory
+#    path: /tmp/shared-directory-path
