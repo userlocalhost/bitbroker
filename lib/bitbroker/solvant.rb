@@ -49,6 +49,14 @@ module BitBroker
       data = MessagePack.unpack(binary)
       offset = data['offset'] * data['chunk_size']
 
+      # update progress infomation
+      ProgressManager.downloading({
+        :path => dirpath + data['path'],
+        :fullsize => data['fullsize'],
+        :chunk_size => data['chunk_size'],
+        :offset => offset,
+      })
+
       File.binwrite(dirpath + data['path'], data['data'], offset)
     end
   
@@ -69,6 +77,7 @@ module BitBroker
         @size = opts[:size]
         @offset = opts[:offset]
         @chunk_size = opts[:chunk_size]
+        @fullsize = File.size(@r_path)
       end
 
       def serialize
@@ -77,6 +86,7 @@ module BitBroker
           'data' => File.binread(@f_path, @size, @offset * @chunk_size),
           'offset' => @offset,
           'chunk_size' => @chunk_size,
+          'fullsize' => @fullsize,
         })
       end
     end

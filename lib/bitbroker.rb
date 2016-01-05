@@ -7,6 +7,7 @@ require 'bitbroker/manager'
 require 'bitbroker/manager_impl'
 require 'bitbroker/config'
 require 'bitbroker/log'
+require 'bitbroker/progress'
 
 module Bitbroker
   def self.version
