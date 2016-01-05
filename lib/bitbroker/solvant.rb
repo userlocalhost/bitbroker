@@ -35,12 +35,28 @@ module BitBroker
 
     def upload broker
       @chunks.each do |chunk|
+        # update progress infomation
+        ProgressManager.uploading({
+          :path => @f_path,
+          :fullsize => chunk.fullsize,
+          :chunk_size => chunk.chunk_size,
+          :offset => chunk.offset,
+        })
+
         broker.send_data(chunk.serialize)
       end
     end
 
     def upload_to(broker, dest)
       @chunks.each do |chunk|
+        # update progress infomation
+        ProgressManager.uploading({
+          :path => @f_path,
+          :fullsize => chunk.fullsize,
+          :chunk_size => chunk.chunk_size,
+          :offset => chunk.offset,
+        })
+
         broker.send_p_data(dest, chunk.serialize)
       end
     end
@@ -51,10 +67,10 @@ module BitBroker
 
       # update progress infomation
       ProgressManager.downloading({
-        :path => dirpath + data['path'],
+        :path => @f_path,
         :fullsize => data['fullsize'],
         :chunk_size => data['chunk_size'],
-        :offset => offset,
+        :offset => data['offset'],
       })
 
       File.binwrite(dirpath + data['path'], data['data'], offset)
@@ -71,6 +87,8 @@ module BitBroker
     end
 
     class Chunk
+      attr_reader :chunk_size, :offset, :fullsize
+
       def initialize(opts)
         @r_path = opts[:r_path]
         @f_path = opts[:f_path]

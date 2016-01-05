@@ -1,27 +1,44 @@
 module BitBroker
   class ProgressManager
-    STATUS_DOWNLOADING = 1 << 0
-    STATUS_UPLOADING = 1 << 1
+    TYPE_DOWNLOADING = 1 << 0
+    TYPE_UPLOADING = 1 << 1
 
     # initialize class instance variables
     @downloadings = @uploadings = []
 
-    def self.downloading(opts)
-      progress = @downloadings.find {|x| x.path == opts[:path]}
-      if progress == nil
-        opts[:status] = STATUS_DOWNLOADING
-        progress = Progress.new(opts)
-
-        # append class variables
-        @downloadings.push progress
-      end
-
-      progress.update(opts[:offset])
+    def self.uploading(opts)
+      self.update_progress(opts, TYPE_UPLOADING)
     end
+    def self.downloading(opts)
+      self.update_progress(opts, TYPE_DOWNLOADING)
+    end
+
     def self.show_downloadings
       @downloadings.each do |progress|
         puts progress.get_status
       end
+    end
+
+    private
+    def self.update_progress(opts, type)
+      case type
+      when TYPE_DOWNLOADING
+        container_name = :@downloadings
+      when TYPE_UPLOADING
+        container_name = :@uploadings
+      end
+      container = self.instance_variable_get(container_name)
+
+      progress = container.find {|x| x.path == opts[:path]}
+      if progress == nil
+        opts[:status] = type
+        progress = Progress.new(opts)
+
+        # append class variables
+        self.instance_variable_set(container_name, @downloadings.push(progress))
+      end
+
+      progress.update(opts[:offset])
     end
 
     # This describes 
