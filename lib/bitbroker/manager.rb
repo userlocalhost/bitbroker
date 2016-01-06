@@ -29,8 +29,10 @@ module BitBroker
             manager.advertise
 
             loop {}
-          rescue Exception => _
+          rescue Exception => e
+            Log.error(e.to_s)
             manager.stop
+            raise e
           end
         end
       end

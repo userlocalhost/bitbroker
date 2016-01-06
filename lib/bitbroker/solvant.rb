@@ -16,15 +16,17 @@ module BitBroker
       end
 
       # separate per chunk
-      @chunks = []
+      @chunks = Array.new
       chunk_splitter(File::Stat.new(@f_path).size, chunk_size) do |offset, size|
-        @chunks.push(Chunk.new({
+        obj = Chunk.new({
           :r_path => r_path,
           :f_path => @f_path,
           :size => size,
           :offset => offset,
           :chunk_size => chunk_size,
-        }))
+        })
+
+        @chunks.push(obj)
       end
     end
 
@@ -95,7 +97,7 @@ module BitBroker
         @size = opts[:size]
         @offset = opts[:offset]
         @chunk_size = opts[:chunk_size]
-        @fullsize = File.size(@r_path)
+        @fullsize = File.size(@f_path)
       end
 
       def serialize

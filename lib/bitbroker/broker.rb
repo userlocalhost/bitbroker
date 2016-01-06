@@ -94,7 +94,8 @@ module BitBroker
         end
       rescue OpenSSL::Cipher::CipherError => e
         Log.warn("[Subscriber] #{e.to_s}")
-      rescue Exception => _
+      rescue Exception => e
+        LOG.error e.to_s
         finish
       end
     end

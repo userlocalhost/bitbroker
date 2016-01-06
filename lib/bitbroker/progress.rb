@@ -1,68 +1,104 @@
+require 'msgpack'
+
 module BitBroker
   class ProgressManager
-    TYPE_DOWNLOADING = 1 << 0
-    TYPE_UPLOADING = 1 << 1
-
-    # initialize class instance variables
-    @downloadings = @uploadings = []
-
     def self.uploading(opts)
-      self.update_progress(opts, TYPE_UPLOADING)
+      container = Container.new
+      self.update_progress(opts, container.uploading)
+      container.save
     end
     def self.downloading(opts)
-      self.update_progress(opts, TYPE_DOWNLOADING)
+      container = Container.new
+      self.update_progress(opts, container.downloading)
+      container.save
     end
 
-    def self.show_downloadings
-      @downloadings.each do |progress|
-        puts progress.get_status
-      end
+    def self.now_downloadings
+      container = Container.new
+      container.downloading.map { |x| x.get_status if x.progress < 100 }
+    end
+    def self.now_uploadings
+      container = Container.new
+      container.uploading.map { |x| x.get_status if x.progress < 100 }
     end
 
     private
-    def self.update_progress(opts, type)
-      case type
-      when TYPE_DOWNLOADING
-        container_name = :@downloadings
-      when TYPE_UPLOADING
-        container_name = :@uploadings
-      end
-      container = self.instance_variable_get(container_name)
-
+    def self.update_progress(opts, container)
       progress = container.find {|x| x.path == opts[:path]}
       if progress == nil
-        opts[:status] = type
         progress = Progress.new(opts)
 
         # append class variables
-        self.instance_variable_set(container_name, @downloadings.push(progress))
+        container.push(progress)
       end
 
       progress.update(opts[:offset])
     end
 
+    class Container
+      PATH_UPLOADING = "#{ENV['HOME']}/.bitbroker/.uploadings"
+      PATH_DOWNLOADING = "#{ENV['HOME']}/.bitbroker/.downloadings"
+
+      attr_reader :uploading, :downloading
+      def initialize
+        @uploading = []
+        if FileTest.exist? PATH_UPLOADING
+          MessagePack.unpack(File.read(PATH_UPLOADING)).each do |data|
+            @uploading.push(BitBroker::ProgressManager::Progress.new({
+              :path => data['path'],
+              :bitmap => data['bitmap'],
+              :fullsize => data['fullsize'],
+              :chunk_size => data['chunk_size'],
+            }))
+          end
+        end
+
+        @downloading = []
+        if FileTest.exist? PATH_DOWNLOADING
+          MessagePack.unpack(File.read(PATH_DOWNLOADING)).each do |data|
+            @downloading.push(BitBroker::ProgressManager::Progress.new({
+              :path => data['path'],
+              :bitmap => data['bitmap'],
+              :fullsize => data['fullsize'],
+              :chunk_size => data['chunk_size'],
+            }))
+          end
+        end
+      end
+      def save
+        File.write(PATH_UPLOADING, MessagePack.pack(@uploading.map{|x| x.serialize}))
+        File.write(PATH_DOWNLOADING, MessagePack.pack(@downloading.map{|x| x.serialize}))
+      end
+    end
+
     # This describes 
     class Progress
-      attr_reader :path, :bitmap
+      attr_reader :path
 
       def initialize(opts)
         length = opts[:fullsize] / opts[:chunk_size]
         length += 1 if opts[:fullsize] % opts[:chunk_size] > 0
 
+        @chunk_size = opts[:chunk_size]
+        @fullsize = opts[:fullsize]
         @path = opts[:path]
-        @status = opts[:status]
-        @bitmap = Array.new(length, false)
+
+        @bitmap = opts[:bitmap]
+        @bitmap = Array.new(length, false) unless !!@bitmap
       end
       def update(index)
         @bitmap[index] = true
       end
       def get_status
         # return progress status
-        "[#{progress}] #{@path}"
+        "[ %2d%% ] #{@path}" % progress
       end
       def progress
         # return progress percentage
-        "%02d" % (100 * @bitmap.select{|x| x}.size / @bitmap.size)
+        100 * @bitmap.select{|x| x}.size / @bitmap.size
+      end
+      def serialize
+        {'path' => @path, 'bitmap' => @bitmap, 'chunk_size' => @chunk_size, 'fullsize' => @fullsize}
       end
     end
   end

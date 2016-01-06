@@ -3,7 +3,7 @@ require 'yaml'
 module BitBroker
   class Config
     DEFAULT_PATH_CONFIG = "#{ENV['HOME']}/.bitbroker/config"
-    DEFAULT_PATH_PID = "#{ENV['HOME']}/.bitbroker/pid"
+    DEFAULT_PATH_PID = "/tmp/bitbroker.pid"
 
     def self.[](param)
       YAML.load_file(path_config)[param]

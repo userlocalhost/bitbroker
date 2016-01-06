@@ -1,0 +1,14 @@
+#!/usr/bin/env ruby
+
+require 'bitbroker'
+
+def show_status(type)
+  files = BitBroker::ProgressManager.send(type)
+  unless files.empty?
+    puts "=== #{type} ==="
+    files.each {|x| puts x}
+  end
+end
+
+show_status(:now_uploadings)
+show_status(:now_downloadings)
