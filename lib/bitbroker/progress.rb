@@ -41,29 +41,22 @@ module BitBroker
 
       attr_reader :uploading, :downloading
       def initialize
-        @uploading = []
-        if FileTest.exist? PATH_UPLOADING
-          MessagePack.unpack(File.read(PATH_UPLOADING)).each do |data|
-            @uploading.push(BitBroker::ProgressManager::Progress.new({
-              :path => data['path'],
-              :bitmap => data['bitmap'],
-              :fullsize => data['fullsize'],
-              :chunk_size => data['chunk_size'],
-            }))
+        def fileload(path, &block)
+          if FileTest.exist? file
+            MessagePack.unpack(File.read(path)).each do |data|
+              block.call(BitBroker::ProgressManager::Progress.new({
+                :path => data['path'],
+                :bitmap => data['bitmap'],
+                :fullsize => data['fullsize'],
+                :chunk_size => data['chunk_size'],
+              }))
+            end
           end
         end
 
-        @downloading = []
-        if FileTest.exist? PATH_DOWNLOADING
-          MessagePack.unpack(File.read(PATH_DOWNLOADING)).each do |data|
-            @downloading.push(BitBroker::ProgressManager::Progress.new({
-              :path => data['path'],
-              :bitmap => data['bitmap'],
-              :fullsize => data['fullsize'],
-              :chunk_size => data['chunk_size'],
-            }))
-          end
-        end
+        @uploading = @downloading = []
+        fileload(PATH_UPLOADING) {|obj| @uploading.push(obj)}
+        fileload(PATH_DOWNLOADING) {|obj| @downloading.push(obj)}
       end
       def save
         File.write(PATH_UPLOADING, MessagePack.pack(@uploading.map{|x| x.serialize}))
