@@ -30,11 +30,6 @@ module BitBroker
       end
     end
 
-    # This defines operations to manipulate actual Flie object on FileSystem
-    def remove
-      File.unlink(@f_path)
-    end
-
     def upload broker
       @chunks.each do |chunk|
         # update progress infomation

@@ -97,6 +97,8 @@ module BitBroker
       rescue Exception => e
         LOG.error e.to_s
         finish
+
+        raise e
       end
     end
     def decode(encrypted_data)

@@ -18,22 +18,16 @@ module BitBroker
             f.write("#{$$}\n")
           end
 
-          begin
-            manager = BitBroker::Manager.new({
-              :mqconfig => BitBroker::Config['mqconfig'],
-              :path => entry['path'],
-              :name => entry['name'],
-            })
+          manager = BitBroker::Manager.new({
+            :mqconfig => BitBroker::Config['mqconfig'],
+            :path => entry['path'],
+            :name => entry['name'],
+          })
 
-            manager.start
-            manager.advertise
+          manager.start
+          manager.advertise
 
-            loop {}
-          rescue Exception => e
-            Log.error(e.to_s)
-            manager.stop
-            raise e
-          end
+          manager.join
         end
       end
     end
@@ -47,40 +41,33 @@ module BitBroker
     end
 
     def start
+      @threads = []
+
       # start observer that watches changing of local file-system
-      @observer = do_start_observer
+      @threads << do_start_observer
 
       # start receivers that consume message of remote nodes
-      @metadata_receiver = do_start_metadata_receiver
-      @p_metadata_receiver = do_start_p_metadata_receiver
+      @threads << do_start_metadata_receiver
+      @threads << do_start_p_metadata_receiver
 
-      @data_receiver = do_start_data_receiver
-      @p_data_receiver = do_start_p_data_receiver
+      @threads << do_start_data_receiver
+      @threads << do_start_p_data_receiver
 
       # start collector that maintains the shared directory will be same with remote ones.
-      @collector = do_start_collector
+      @threads << do_start_collector
+
+      @threads.each {|t| t.abort_on_exception = true}
+    end
+
+    def join
+      @threads.each(&:join)
     end
 
     def stop
       # for observer
-      @observer.raise 'stop'
-      @observer.join
-
-      # for receiver
-      @metadata_receiver.raise "stop"
-      @metadata_receiver.join
-
-      @p_metadata_receiver.raise "stop"
-      @p_metadata_receiver.join
-
-      @data_receiver.raise "stop"
-      @data_receiver.join
-
-      @p_data_receiver.raise "stop"
-      @p_data_receiver.join
-
-      # for collector
-      @collector.kill
+      @threads.each do |t|
+        t.raise 'stop'
+      end
     end
   end
 end

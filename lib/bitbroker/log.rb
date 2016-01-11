@@ -8,6 +8,13 @@ module BitBroker
       logger.method(m).call(*args)
     end
 
+    def self.dump(exception)
+      self.error(exception.to_s)
+      exception.backtrace.each do |line|
+        self.error(line)
+      end
+    end
+
     private
     def self.logger
       @logger ||= init_logger

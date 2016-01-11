@@ -82,13 +82,9 @@ module BitBroker
     class FileInfo
       attr_reader :path, :size, :mtime
 
-      # describes file status
-      STATUS_REMOVED = 1 << 0
-
       def initialize(dirpath, filepath)
         @fpath = "#{dirpath}/#{filepath}"
         @path = filepath
-        @status = 0
 
         self.update
       end
@@ -103,16 +99,9 @@ module BitBroker
           @mtime = Time.new(0)
         end
       end
-      def removed?
-        @status & STATUS_REMOVED > 0
-      end
-      def remove
-        @status |= STATUS_REMOVED
-      end
       def to_h
         {
           'path' => @path,
-          'status' => @status,
           'size' => @size,
           'mtime' => @mtime.to_s,
         }

@@ -62,103 +62,117 @@ module BitBroker
         end
       end
 
-      def handle_rem(path)
-        rpath = @metadata.get_rpath(path)
-
-        #@metadata.remove_with_path(rpath)
-        file = @metadata.get_with_path(rpath)
-        if file != nil
-          Log.debug("[ManagerImpl] (handle_rem) path:#{path}")
-
-          file.remove
-          @metadata.advertise(@publisher)
-        end
-      end
-
       Thread.new do
-        Observer.new(@config[:dirpath]) do |mod, add, rem|
-          mod.each {|x| handle_mod(x)}
-          add.each {|x| handle_add(x)}
-          rem.each {|x| handle_rem(x)}
+        Observer.new(@config[:dirpath]) do |mod, add|
+          begin
+            mod.each {|x| handle_mod(x)}
+            add.each {|x| handle_add(x)}
+          rescue Exception => e
+            Log.dump(e)
+          end
         end
       end
     end
 
     def do_start_collector
-      Thread.new do
-        loop do
-          deficient = @deficients.first
-          if deficient != nil
-            candidates = @suggestions.select { |x| x['path'] == deficient['path'] }
-            if candidates.size > 0
-              candidate = candidates[rand(candidates.size)]
+      def file_collection
+        deficient = @deficients.first
+        if deficient != nil
+          candidates = @suggestions.select { |x| x['path'] == deficient['path'] }
+          if candidates.size > 0
+            candidate = candidates[rand(candidates.size)]
 
-              @metadata.request(@publisher, [candidate], candidate['from'])
+            @metadata.request(@publisher, [candidate], candidate['from'])
 
-              @semaphore.synchronize do
-                @suggestions = @suggestions.reject {|x| x['path'] == deficient['path']}
-                @deficients.delete(deficient)
-              end
+            @semaphore.synchronize do
+              @suggestions = @suggestions.reject {|x| x['path'] == deficient['path']}
+              @deficients.delete(deficient)
             end
           end
-          Thread.pass
+        end
+      end
+
+      Thread.new do
+        loop do
+          begin
+            file_collection
+            Thread.pass
+          rescue Exception => e
+            Log.dump(e)
+          end
         end
       end
     end
 
     def do_start_metadata_receiver
       Thread.new do
-        receiver = Subscriber.new(@config)
-        receiver.recv_metadata do |msg, from|
-          case msg['type']
-          when Metadata::TYPE_ADVERTISE then
-            receive_advertise(msg['data'], from)
-          when Metadata::TYPE_REQUEST_ALL then
-            receive_request_all(msg['data'], from)
+        begin
+          receiver = Subscriber.new(@config)
+          receiver.recv_metadata do |msg, from|
+            case msg['type']
+            when Metadata::TYPE_ADVERTISE then
+              receive_advertise(msg['data'], from)
+            when Metadata::TYPE_REQUEST_ALL then
+              receive_request_all(msg['data'], from)
+            end
           end
+        rescue Exception => e
+          Log.dump(e)
         end
       end
     end
 
     def do_start_p_metadata_receiver
       Thread.new do
-        receiver = Subscriber.new(@config)
-        receiver.recv_p_metadata do |msg, from|
-          case msg['type']
-          when Metadata::TYPE_SUGGESTION then
-            receive_suggestion(msg['data'], from)
-          when Metadata::TYPE_REQUEST then
-            receive_request(msg['data'], from)
+        begin
+          receiver = Subscriber.new(@config)
+          receiver.recv_p_metadata do |msg, from|
+            case msg['type']
+            when Metadata::TYPE_SUGGESTION then
+              receive_suggestion(msg['data'], from)
+            when Metadata::TYPE_REQUEST then
+              receive_request(msg['data'], from)
+            end
           end
+        rescue Exception => e
+          Log.dump(e)
         end
       end
     end
 
     def do_start_data_receiver
       Thread.new do
-        receiver = Subscriber.new(@config)
-        receiver.recv_data do |binary, from|
-          path = MessagePack.unpack(binary)['path']
+        begin
+          receiver = Subscriber.new(@config)
+          receiver.recv_data do |binary, from|
+            path = MessagePack.unpack(binary)['path']
 
-          Log.debug("[ManagerImpl] (data_receiver) path: #{path}")
+            Log.debug("[ManagerImpl] (data_receiver) path: #{path}")
 
-          @file_activities.push(FileActivity.create(path))
+            @file_activities.push(FileActivity.create(path))
 
-          Solvant.load_binary(@config[:dirpath], binary)
+            Solvant.load_binary(@config[:dirpath], binary)
+          end
+        rescue Exception => e
+          Log.dump(e)
         end
       end
     end
     def do_start_p_data_receiver
       Thread.new do
-        receiver = Subscriber.new(@config)
-        receiver.recv_p_data do |binary, from|
-          path = MessagePack.unpack(binary)['path']
+        begin
+          receiver = Subscriber.new(@config)
+          receiver.recv_p_data do |binary, from|
+            path = MessagePack.unpack(binary)['path']
 
-          Log.debug("[ManagerImpl] (p_data_receiver) path: #{path}")
+            Log.debug("[ManagerImpl] (p_data_receiver) path: #{path}")
 
-          @file_activities.push(FileActivity.create(path))
+            @file_activities.push(FileActivity.create(path))
 
-          Solvant.load_binary(@config[:dirpath], binary)
+            Solvant.load_binary(@config[:dirpath], binary)
+          end
+        rescue Exception => e
+          Log.dump(e)
         end
       end
     end
@@ -169,35 +183,14 @@ module BitBroker
         when nil # this means target file doesn't exist in local.
           true
         else
-          f.size != remote['size'] and
-          not f.removed?
-        end
-      end
-
-      def removed?(remote)
-        case f = @metadata.get_with_path(remote['path'])
-        when nil
-          false
-        else
-          remote['status'].to_i & Metadata::FileInfo::STATUS_REMOVED > 0
+          f.size != remote['size']
         end
       end
       Log.debug("[ManagerImpl] (receive_advertise) <#{from}> data:#{data}")
 
       deficients = []
       data.each do |remote|
-        if removed? remote
-          Log.debug("[ManagerImpl] (receive_advertise) remove: #{remote}")
-
-          # set file_activities
-          @file_activities.push(FileActivity.remove(remote['path']))
-
-          # remove FileInfo object which metadata has
-          @metadata.remove_with_path(remote['path'])
-
-          # remove actual file in local FS
-          Solvant.new(@config[:dirpath], remote['path']).remove
-        else updated? remote
+        if updated? remote
           deficients.push(remote)
 
           fpath = "#{@config[:dirpath]}/#{remote['path']}"
