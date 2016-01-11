@@ -42,7 +42,7 @@ module BitBroker
       attr_reader :uploading, :downloading
       def initialize
         def fileload(path, &block)
-          if FileTest.exist? file
+          if FileTest.exist? path
             MessagePack.unpack(File.read(path)).each do |data|
               block.call(BitBroker::ProgressManager::Progress.new({
                 :path => data['path'],
