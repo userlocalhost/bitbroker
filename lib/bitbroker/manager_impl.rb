@@ -17,9 +17,6 @@ module BitBroker
 
       @deficients = @suggestions = []
       @semaphore = Mutex.new
-
-      # internal variable in this class to know who modified/crated file
-      @file_activities = []
     end
 
     def form_dirpath path
@@ -154,12 +151,6 @@ module BitBroker
         begin
           receiver = Subscriber.new(@config)
           receiver.recv_data do |binary, from|
-            path = MessagePack.unpack(binary)['path']
-
-            Log.debug("[ManagerImpl] (data_receiver) path: #{path}")
-
-            #@file_activities.push(FileActivity.create(path))
-
             Solvant.load_binary(@config[:dirpath], binary)
           end
         rescue Exception => e
@@ -172,12 +163,6 @@ module BitBroker
         begin
           receiver = Subscriber.new(@config)
           receiver.recv_p_data do |binary, from|
-            path = MessagePack.unpack(binary)['path']
-
-            Log.debug("[ManagerImpl] (p_data_receiver) path: #{path}")
-
-            #@file_activities.push(FileActivity.create(path))
-
             Solvant.load_binary(@config[:dirpath], binary)
           end
         rescue Exception => e
@@ -250,30 +235,6 @@ module BitBroker
         f = @metadata.get_with_path(remote['path'])
 
         Solvant.new(@config[:dirpath], f.path).upload_to(@publisher, from)
-      end
-    end
-
-    class FileActivity
-      STATUS_REMOVED = 1 << 0
-
-      attr_reader :path, :mtime
-
-      def initialize(path, mtime, status = 0)
-        @path = path
-        @mtime = mtime
-        @status = status
-      end
-
-      def removed?
-        @status & STATUS_REMOVED > 0
-      end
-
-      def self.create(path)
-        self.new(path, FileTest.exist?(path) ? File.mtime(path) : Time.now)
-      end
-
-      def self.remove(path)
-        self.new(path, nil, STATUS_REMOVED)
       end
     end
   end
