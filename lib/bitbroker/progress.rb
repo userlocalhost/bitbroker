@@ -13,13 +13,13 @@ module BitBroker
       container.save
     end
 
-    def self.now_downloadings
-      container = Container.new
-      container.downloading.map { |x| x.get_status if x.progress < 100 }
-    end
     def self.now_uploadings
       container = Container.new
-      container.uploading.map { |x| x.get_status if x.progress < 100 }
+      container.uploading.select { |x| x.progress < 100 }
+    end
+    def self.now_downloadings
+      container = Container.new
+      container.downloading.select { |x| x.progress < 100 }
     end
 
     private
@@ -41,22 +41,26 @@ module BitBroker
 
       attr_reader :uploading, :downloading
       def initialize
-        def fileload(path, &block)
+        def fileload(path, container)
           if FileTest.exist? path
             MessagePack.unpack(File.read(path)).each do |data|
-              block.call(BitBroker::ProgressManager::Progress.new({
-                :path => data['path'],
-                :bitmap => data['bitmap'],
-                :fullsize => data['fullsize'],
-                :chunk_size => data['chunk_size'],
-              }))
+              progress = container.find {|x| x.path == data['path']}
+              if progress == nil
+                container.push(BitBroker::ProgressManager::Progress.new({
+                  :path => data['path'],
+                  :bitmap => data['bitmap'],
+                  :fullsize => data['fullsize'],
+                  :chunk_size => data['chunk_size'],
+                }))
+              end
             end
           end
         end
 
-        @uploading = @downloading = []
-        fileload(PATH_UPLOADING) {|obj| @uploading.push(obj)}
-        fileload(PATH_DOWNLOADING) {|obj| @downloading.push(obj)}
+        @uploading = []
+        @downloading = []
+        fileload(PATH_UPLOADING, @uploading)
+        fileload(PATH_DOWNLOADING, @downloading)
       end
       def save
         File.write(PATH_UPLOADING, MessagePack.pack(@uploading.map{|x| x.serialize}))
@@ -82,16 +86,16 @@ module BitBroker
       def update(index)
         @bitmap[index] = true
       end
-      def get_status
-        # return progress status
-        "[ %2d%% ] #{@path}" % progress
-      end
       def progress
         # return progress percentage
         100 * @bitmap.select{|x| x}.size / @bitmap.size
       end
       def serialize
         {'path' => @path, 'bitmap' => @bitmap, 'chunk_size' => @chunk_size, 'fullsize' => @fullsize}
+      end
+      def to_s
+        # return progress status string
+        "[ %2d%% ] #{@path}" % progress
       end
     end
   end

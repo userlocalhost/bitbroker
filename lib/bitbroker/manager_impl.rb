@@ -30,13 +30,23 @@ module BitBroker
     end
 
     def do_start_observer
+      def under_progress?(path)
+        ret = false
+
+        check_path = Proc.new do |progress|
+          progress.path == path
+        end
+
+        ret |= ProgressManager.now_uploadings.any? &check_path
+        ret |= ProgressManager.now_downloadings.any? &check_path
+      end
+
       def handle_add(path)
         Log.debug("[ManagerImpl] (handle_add) path:#{path}")
 
-        rpath = @metadata.get_rpath(path)
-        if obj = @file_activities.find {|x| x.path == rpath}
-          @file_activities.delete(obj)
-        else
+        unless under_progress? path
+          rpath = @metadata.get_rpath(path)
+
           # create metadata info
           @metadata.create(rpath)
 
@@ -48,10 +58,9 @@ module BitBroker
       def handle_mod(path)
         Log.debug("[ManagerImpl] (handle_mod) path:#{path}")
 
-        rpath = @metadata.get_rpath(path)
-        if obj = @file_activities.find {|x| x.path == rpath}
-          @file_activities.delete(obj)
-        else
+        unless under_progress? path
+          rpath = @metadata.get_rpath(path)
+
           # upload target file
           Solvant.new(@metadata.dir, rpath).upload(@publisher)
 
@@ -149,7 +158,7 @@ module BitBroker
 
             Log.debug("[ManagerImpl] (data_receiver) path: #{path}")
 
-            @file_activities.push(FileActivity.create(path))
+            #@file_activities.push(FileActivity.create(path))
 
             Solvant.load_binary(@config[:dirpath], binary)
           end
@@ -167,7 +176,7 @@ module BitBroker
 
             Log.debug("[ManagerImpl] (p_data_receiver) path: #{path}")
 
-            @file_activities.push(FileActivity.create(path))
+            #@file_activities.push(FileActivity.create(path))
 
             Solvant.load_binary(@config[:dirpath], binary)
           end

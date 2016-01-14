@@ -8,7 +8,7 @@ module BitBroker
     attr_reader :chunks
 
     def initialize(dirpath, r_path, chunk_size = DEFAULT_CHUNK_SIZE)
-      @f_path = "#{dirpath}/#{r_path}"
+      @f_path = "#{dirpath}#{r_path}"
 
       # Validate target file at first
       if not FileTest.exist? @f_path
