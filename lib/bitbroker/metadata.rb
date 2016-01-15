@@ -27,7 +27,7 @@ module BitBroker
       if get_with_path(path) == nil
         @files.push(FileInfo.new(@dir, path))
       else
-        puts "Warning: #{path} is already created"
+        Log.warn("Warning: #{path} is already created")
       end
     end
 
