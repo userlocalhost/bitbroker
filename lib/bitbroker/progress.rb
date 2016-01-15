@@ -4,24 +4,23 @@ module BitBroker
   class ProgressManager
     SEMAPHORE = Mutex.new
 
-    def self.uploading(opts)
+    def self.uploading(opts = nil)
       container = Container.new
-      self.update_progress(opts, container.uploading)
-      container.save
+      if opts == nil
+        container.uploading
+      else
+        self.update_progress(opts, container.uploading)
+        container.save
+      end
     end
-    def self.downloading(opts)
+    def self.downloading(opts = nil)
       container = Container.new
-      self.update_progress(opts, container.downloading)
-      container.save
-    end
-
-    def self.now_uploadings
-      container = Container.new
-      container.uploading.select { |x| x.progress < 100 }
-    end
-    def self.now_downloadings
-      container = Container.new
-      container.downloading.select { |x| x.progress < 100 }
+      if opts == nil
+        container.downloading
+      else
+        self.update_progress(opts, container.downloading)
+        container.save
+      end
     end
 
     private
@@ -76,7 +75,7 @@ module BitBroker
 
     # This describes 
     class Progress
-      attr_reader :path
+      attr_reader :path, :last_update
 
       def initialize(opts)
         length = opts[:fullsize] / opts[:chunk_size]
@@ -85,12 +84,14 @@ module BitBroker
         @chunk_size = opts[:chunk_size]
         @fullsize = opts[:fullsize]
         @path = opts[:path]
+        @last_update = Time.now
 
         @bitmap = opts[:bitmap]
         @bitmap = Array.new(length, false) unless !!@bitmap
       end
       def update(index)
         @bitmap[index] = true
+        @last_update = Time.now
       end
       def progress
         # return progress percentage

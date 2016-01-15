@@ -28,14 +28,20 @@ module BitBroker
 
     def do_start_observer
       def under_progress?(path)
-        ret = false
+        def check(container, path)
+          ret = false
+          obj = container.find { |x| x.path == path }
 
-        check_path = Proc.new do |progress|
-          progress.path == path
+          ret |= obj != nil
+          if obj != nil
+            ret |= obj.progress < 100
+            ret |= Time.now - obj.last_update < 10
+          end
         end
 
-        ret |= ProgressManager.now_uploadings.any? &check_path
-        ret |= ProgressManager.now_downloadings.any? &check_path
+        ret = false
+        ret |= check(ProgressManager.uploading, path)
+        ret |= check(ProgressManager.downloading, path)
       end
 
       def handle_add(path)
@@ -157,7 +163,7 @@ module BitBroker
         begin
           receiver = Subscriber.new(@config)
           receiver.recv_data do |binary, from|
-            Solvant.load_binary(@config[:dirpath], binary)
+            Solvant.load_binary(@metadata, @config[:dirpath], binary)
           end
         rescue Exception => e
           Log.dump(e)
@@ -169,7 +175,7 @@ module BitBroker
         begin
           receiver = Subscriber.new(@config)
           receiver.recv_p_data do |binary, from|
-            Solvant.load_binary(@config[:dirpath], binary)
+            Solvant.load_binary(@metadata, @config[:dirpath], binary)
           end
         rescue Exception => e
           Log.dump(e)

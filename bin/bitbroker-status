@@ -3,12 +3,13 @@
 require 'bitbroker'
 
 def show_status(type)
-  files = BitBroker::ProgressManager.send(type)
+  container = BitBroker::ProgressManager.send(type)
+  files = container.select {|x| x.progress < 100}
   unless files.empty?
     puts "=== #{type} ==="
     files.each {|x| puts x}
   end
 end
 
-show_status(:now_uploadings)
-show_status(:now_downloadings)
+show_status(:uploading)
+show_status(:downloading)

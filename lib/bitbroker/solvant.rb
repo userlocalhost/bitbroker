@@ -58,9 +58,12 @@ module BitBroker
       end
     end
 
-    def self.load_binary(dirpath, binary)
+    def self.load_binary(metadata, dirpath, binary)
       data = MessagePack.unpack(binary)
       offset = data['offset'] * data['chunk_size']
+
+      # register metadata if needed
+      metadata.create(data['path'])
 
       # update progress infomation
       ProgressManager.downloading({
