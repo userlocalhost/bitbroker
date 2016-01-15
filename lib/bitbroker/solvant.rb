@@ -64,7 +64,7 @@ module BitBroker
 
       # update progress infomation
       ProgressManager.downloading({
-        :path => @f_path,
+        :path => dirpath + data['path'],
         :fullsize => data['fullsize'],
         :chunk_size => data['chunk_size'],
         :offset => data['offset'],

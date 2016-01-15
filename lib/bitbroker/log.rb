@@ -9,6 +9,7 @@ module BitBroker
     end
 
     def self.dump(exception)
+      self.error("[#{exception.inspect}] #{exception.message}")
       self.error(exception.to_s)
       exception.backtrace.each do |line|
         self.error(line)

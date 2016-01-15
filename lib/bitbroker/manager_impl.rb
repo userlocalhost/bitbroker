@@ -39,27 +39,33 @@ module BitBroker
       end
 
       def handle_add(path)
-        Log.debug("[ManagerImpl] (handle_add) path:#{path}")
-
         unless under_progress? path
+          Log.debug("[ManagerImpl] (handle_add) actual update :#{path}")
+
           rpath = @metadata.get_rpath(path)
 
           # create metadata info
           @metadata.create(rpath)
 
-          # upload target file
-          Solvant.new(@metadata.dir, rpath).upload(@publisher)
+          # upload target file with backend-thread
+          Thread.new do
+            Solvant.new(@metadata.dir, rpath).upload(@publisher)
+          end
+
+          @metadata.advertise(@publisher)
         end
       end
 
       def handle_mod(path)
-        Log.debug("[ManagerImpl] (handle_mod) path:#{path}")
-
         unless under_progress? path
+          Log.debug("[ManagerImpl] (handle_mod) actual update :#{path}")
+
           rpath = @metadata.get_rpath(path)
 
-          # upload target file
-          Solvant.new(@metadata.dir, rpath).upload(@publisher)
+          # upload target file with backend-thread
+          Thread.new do
+            Solvant.new(@metadata.dir, rpath).upload(@publisher)
+          end
 
           # update fileinfo
           @metadata.get_with_path(rpath).update
