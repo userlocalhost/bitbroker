@@ -2,6 +2,8 @@ require 'msgpack'
 
 module BitBroker
   class ProgressManager
+    SEMAPHORE = Mutex.new
+
     def self.uploading(opts)
       container = Container.new
       self.update_progress(opts, container.uploading)
@@ -42,16 +44,18 @@ module BitBroker
       attr_reader :uploading, :downloading
       def initialize
         def fileload(path, container)
-          if FileTest.exist? path
-            MessagePack.unpack(File.read(path)).each do |data|
-              progress = container.find {|x| x.path == data['path']}
-              if progress == nil
-                container.push(BitBroker::ProgressManager::Progress.new({
-                  :path => data['path'],
-                  :bitmap => data['bitmap'],
-                  :fullsize => data['fullsize'],
-                  :chunk_size => data['chunk_size'],
-                }))
+          SEMAPHORE.synchronize do
+            if FileTest.exist? path
+              MessagePack.unpack(File.read(path)).each do |data|
+                progress = container.find {|x| x.path == data['path']}
+                if progress == nil
+                  container.push(BitBroker::ProgressManager::Progress.new({
+                    :path => data['path'],
+                    :bitmap => data['bitmap'],
+                    :fullsize => data['fullsize'],
+                    :chunk_size => data['chunk_size'],
+                  }))
+                end
               end
             end
           end
@@ -63,8 +67,10 @@ module BitBroker
         fileload(PATH_DOWNLOADING, @downloading)
       end
       def save
-        File.write(PATH_UPLOADING, MessagePack.pack(@uploading.map{|x| x.serialize}))
-        File.write(PATH_DOWNLOADING, MessagePack.pack(@downloading.map{|x| x.serialize}))
+        SEMAPHORE.synchronize do
+          File.write(PATH_UPLOADING, MessagePack.pack(@uploading.map{|x| x.serialize}))
+          File.write(PATH_DOWNLOADING, MessagePack.pack(@downloading.map{|x| x.serialize}))
+        end
       end
     end
 
