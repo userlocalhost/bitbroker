@@ -37,10 +37,8 @@ module BitBroker
     end
 
     class Container
-      PATH_UPLOADING = "#{ENV['HOME']}/.bitbroker/.uploadings"
-      PATH_DOWNLOADING = "#{ENV['HOME']}/.bitbroker/.downloadings"
-
       attr_reader :uploading, :downloading
+
       def initialize
         def fileload(path, container)
           SEMAPHORE.synchronize do
@@ -62,13 +60,13 @@ module BitBroker
 
         @uploading = []
         @downloading = []
-        fileload(PATH_UPLOADING, @uploading)
-        fileload(PATH_DOWNLOADING, @downloading)
+        fileload(BitBroker::Config::PATH_UPLOADING, @uploading)
+        fileload(BitBroker::Config::PATH_DOWNLOADING, @downloading)
       end
       def save
         SEMAPHORE.synchronize do
-          File.write(PATH_UPLOADING, MessagePack.pack(@uploading.map{|x| x.serialize}))
-          File.write(PATH_DOWNLOADING, MessagePack.pack(@downloading.map{|x| x.serialize}))
+          File.write(BitBroker::Config::PATH_UPLOADING, MessagePack.pack(@uploading.map{|x| x.serialize}))
+          File.write(BitBroker::Config::PATH_DOWNLOADING, MessagePack.pack(@downloading.map{|x| x.serialize}))
         end
       end
     end
