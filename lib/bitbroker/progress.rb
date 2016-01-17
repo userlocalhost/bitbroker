@@ -1,4 +1,4 @@
-require 'msgpack'
+require 'leveldb'
 
 module BitBroker
   class ProgressManager
@@ -25,49 +25,39 @@ module BitBroker
 
     private
     def self.update_progress(opts, container)
-      progress = container.find {|x| x.path == opts[:path]}
-      if progress == nil
-        progress = Progress.new(opts)
+      # create progress object
+      data = container[opts[:path]]
+      progress = data != nil ? Progress.new(data) : Progress.new(opts)
 
-        # append class variables
-        container.push(progress)
-      end
-
+      # update progress bitmap
       progress.update(opts[:offset])
+
+      # save progress infomation to the database
+      container[opts[:path]] = progress.serialize
     end
 
     class Container
-      attr_reader :uploading, :downloading
+      def initialize(type)
+        @db = LeelDB::DB.new BitBroker::Config::PATH_PROGRESSINFO
+        @db[type] ||= {}
 
-      def initialize
-        def fileload(path, container)
-          SEMAPHORE.synchronize do
-            if FileTest.exist? path
-              MessagePack.unpack(File.read(path)).each do |data|
-                progress = container.find {|x| x.path == data['path']}
-                if progress == nil
-                  container.push(BitBroker::ProgressManager::Progress.new({
-                    :path => data['path'],
-                    :bitmap => data['bitmap'],
-                    :fullsize => data['fullsize'],
-                    :chunk_size => data['chunk_size'],
-                  }))
-                end
-              end
-            end
-          end
-        end
-
-        @uploading = []
-        @downloading = []
-        fileload(BitBroker::Config::PATH_UPLOADING, @uploading)
-        fileload(BitBroker::Config::PATH_DOWNLOADING, @downloading)
+        @type = type
       end
-      def save
-        SEMAPHORE.synchronize do
-          File.write(BitBroker::Config::PATH_UPLOADING, MessagePack.pack(@uploading.map{|x| x.serialize}))
-          File.write(BitBroker::Config::PATH_DOWNLOADING, MessagePack.pack(@downloading.map{|x| x.serialize}))
-        end
+      def [](path)
+        @db[@type][path]
+      end
+      def []=(path, data)
+        @db[@type][path] = data
+      end
+    end
+    class UploadInfo < Container
+      def initialize
+        super(:uploading)
+      end
+    end
+    class DownloadInfo < Container
+      def initialize
+        super(:downloading)
       end
     end
 
@@ -96,7 +86,7 @@ module BitBroker
         100 * @bitmap.select{|x| x}.size / @bitmap.size
       end
       def serialize
-        {'path' => @path, 'bitmap' => @bitmap, 'chunk_size' => @chunk_size, 'fullsize' => @fullsize}
+        {:path => @path, :bitmap => @bitmap, :chunk_size => @chunk_size, :fullsize => @fullsize}
       end
       def to_s
         # return progress status string

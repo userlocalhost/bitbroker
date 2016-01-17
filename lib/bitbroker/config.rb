@@ -4,8 +4,7 @@ module BitBroker
   class Config
     DEFAULT_PATH_CONFIG = "#{ENV['HOME']}/.bitbroker/config"
     DEFAULT_PATH_PID = "/tmp/bitbroker.pid"
-    PATH_DOWNLOADING = "/tmp/bitbroker.downloading"
-    PATH_UPLOADING = "/tmp/bitbroker.uploading"
+    PATH_PROGRESSINFO = "/tmp/bitbroker.progress"
 
     def self.[](param)
       YAML.load_file(path_config)[param]
