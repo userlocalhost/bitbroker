@@ -1,97 +1,107 @@
 require 'leveldb'
+require 'msgpack'
 
 module BitBroker
   class ProgressManager
-    SEMAPHORE = Mutex.new
-
     def self.uploading(opts = nil)
-      container = Container.new
+      container = UploadInfo.new
       if opts == nil
-        container.uploading
+        container
       else
-        self.update_progress(opts, container.uploading)
-        container.save
+        self.update_progress(opts, container)
       end
     end
     def self.downloading(opts = nil)
-      container = Container.new
+      container = DownloadInfo.new
       if opts == nil
-        container.downloading
+        container
       else
-        self.update_progress(opts, container.downloading)
-        container.save
+        self.update_progress(opts, container)
       end
     end
 
     private
     def self.update_progress(opts, container)
       # create progress object
-      data = container[opts[:path]]
+      data = container[opts['path']]
       progress = data != nil ? Progress.new(data) : Progress.new(opts)
 
       # update progress bitmap
-      progress.update(opts[:offset])
+      progress.update(opts['offset'])
 
       # save progress infomation to the database
-      container[opts[:path]] = progress.serialize
-    end
+      container[opts['path']] = progress.serialize
 
-    class Container
-      def initialize(type)
-        @db = LeelDB::DB.new BitBroker::Config::PATH_PROGRESSINFO
-        @db[type] ||= {}
-
-        @type = type
-      end
-      def [](path)
-        @db[@type][path]
-      end
-      def []=(path, data)
-        @db[@type][path] = data
-      end
+      # close leveldb object
+      container.close
     end
-    class UploadInfo < Container
-      def initialize
-        super(:uploading)
+  end
+
+  class Container
+    def initialize(path)
+      @db = LevelDB::DB.new path
+    end
+    def each(&block)
+      @db.each do |_key, value|
+        block.call(MessagePack.unpack(value))
       end
     end
-    class DownloadInfo < Container
-      def initialize
-        super(:downloading)
+    def [](path)
+      if !!@db[path]
+        MessagePack.unpack(@db[path])
       end
     end
+    def []=(path, data)
+      @db[path] = MessagePack.pack(data)
+    end
+    def close
+      @db.close
+    end
+  end
+  class UploadInfo < Container
+    def initialize
+      super Config::PATH_PROGRESS_UPLOAD
+    end
+  end
+  class DownloadInfo < Container
+    def initialize
+      super Config::PATH_PROGRESS_DOWNLOAD
+    end
+  end
 
-    # This describes 
-    class Progress
-      attr_reader :path, :last_update
+  # This describes 
+  class Progress
+    attr_reader :path, :last_update
 
-      def initialize(opts)
-        length = opts[:fullsize] / opts[:chunk_size]
-        length += 1 if opts[:fullsize] % opts[:chunk_size] > 0
+    def initialize(opts)
+      fullsize = opts['fullsize'].to_i
+      chunk_size = opts['chunk_size'].to_i
 
-        @chunk_size = opts[:chunk_size]
-        @fullsize = opts[:fullsize]
-        @path = opts[:path]
-        @last_update = Time.now
+      length = fullsize / chunk_size
+      length += 1 if fullsize % chunk_size > 0
 
-        @bitmap = opts[:bitmap]
-        @bitmap = Array.new(length, false) unless !!@bitmap
-      end
-      def update(index)
-        @bitmap[index] = true
-        @last_update = Time.now
-      end
-      def progress
-        # return progress percentage
-        100 * @bitmap.select{|x| x}.size / @bitmap.size
-      end
-      def serialize
-        {:path => @path, :bitmap => @bitmap, :chunk_size => @chunk_size, :fullsize => @fullsize}
-      end
-      def to_s
-        # return progress status string
-        "[ %2d%% ] #{@path}" % progress
-      end
+      @chunk_size = chunk_size
+      @fullsize = fullsize
+      @path = opts['path']
+      @last_update = Time.now
+
+      @bitmap = opts['bitmap']
+      @bitmap = Array.new(length, false) unless !!@bitmap
+    end
+    def update(index)
+      @bitmap[index] = true
+      @last_update = Time.now
+    end
+    def rate
+      # return progress percentage
+      100 * @bitmap.select{|x| x}.size / @bitmap.size
+    end
+    def serialize
+      {'path' => @path, 'bitmap' => @bitmap, 'chunk_size' => @chunk_size, 'fullsize' => @fullsize}
+    end
+    def to_s
+      # return progress status string
+      "[ %2d%% ] #{@path}" % rate
     end
   end
 end

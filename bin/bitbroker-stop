@@ -31,7 +31,7 @@ while pids.size > 0
   end
 end
 File.unlink PIDFILE
-File.unlink BitBroker::Config::PATH_UPLOADING
-File.unlink BitBroker::Config::PATH_DOWNLOADING
+File.unlink BitBroker::Config::PATH_PROGRESS_UPLOADING
+File.unlink BitBroker::Config::PATH_PROGRESS_DOWNLOADING
 
 puts "successed to stop BitBroker".green

@@ -16,7 +16,10 @@ module BitBroker
       @publisher = Publisher.new(@config)
 
       @deficients = @suggestions = []
-      @semaphore = Mutex.new
+
+      # defines semaphore object
+      @sem_metadata = Mutex.new
+      @sem_progress = Mutex.new
     end
 
     def form_dirpath path
@@ -30,18 +33,23 @@ module BitBroker
       def under_progress?(path)
         def check(container, path)
           ret = false
-          obj = container.find { |x| x.path == path }
+          data = container[path]
 
-          ret |= obj != nil
-          if obj != nil
-            ret |= obj.progress < 100
-            ret |= Time.now - obj.last_update < 10
+          # close container-db
+          container.close
+
+          ret |= data != nil
+          if data != nil
+            progress = Progress.new(data)
+
+            ret |= progress.rate < 100
+            ret |= Time.now - progress.last_update < 10
           end
         end
 
         ret = false
-        ret |= check(ProgressManager.uploading, path)
-        ret |= check(ProgressManager.downloading, path)
+        @sem_progress.synchronize { ret |= check(ProgressManager.uploading, path) }
+        @sem_progress.synchronize { ret |= check(ProgressManager.downloading, path) }
       end
 
       def handle_add(path)
@@ -102,7 +110,7 @@ module BitBroker
 
             @metadata.request(@publisher, [candidate], candidate['from'])
 
-            @semaphore.synchronize do
+            @sem_metadata.synchronize do
               @suggestions = @suggestions.reject {|x| x['path'] == deficient['path']}
               @deficients.delete(deficient)
             end
@@ -158,12 +166,31 @@ module BitBroker
       end
     end
 
+    def load_binary(binary)
+      data = MessagePack.unpack(binary)
+      dirpath = @config[:dirpath]
+
+      # register metadata if needed
+      @metadata.create(data['path'])
+
+      # update progress infomation
+      @sem_progress.synchronize do
+        ProgressManager.downloading({
+          'path' => dirpath + data['path'],
+          'fullsize' => data['fullsize'],
+          'chunk_size' => data['chunk_size'],
+          'offset' => data['offset'],
+        })
+      end
+
+      Solvant.load_data(dirpath, data)
+    end
     def do_start_data_receiver
       Thread.new do
         begin
           receiver = Subscriber.new(@config)
           receiver.recv_data do |binary, from|
-            Solvant.load_binary(@metadata, @config[:dirpath], binary)
+            load_binary(binary)
           end
         rescue Exception => e
           Log.dump(e)
@@ -175,7 +202,7 @@ module BitBroker
         begin
           receiver = Subscriber.new(@config)
           receiver.recv_p_data do |binary, from|
-            Solvant.load_binary(@metadata, @config[:dirpath], binary)
+            load_binary(binary)
           end
         rescue Exception => e
           Log.dump(e)
@@ -213,7 +240,7 @@ module BitBroker
       @metadata.request_all(@publisher, deficients)
 
       # record deficient files to get it from remote node
-      @semaphore.synchronize do
+      @sem_metadata.synchronize do
         @deficients += deficients
       end
     end
@@ -235,7 +262,7 @@ module BitBroker
       Log.debug("[ManagerImpl] (receive_suggestion) <#{from}> data:#{data}")
 
       data.each {|x| x['from'] = from}
-      @semaphore.synchronize do
+      @sem_metadata.synchronize do
         @suggestions += data
       end
     end

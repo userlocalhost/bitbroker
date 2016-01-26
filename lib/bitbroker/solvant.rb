@@ -34,10 +34,10 @@ module BitBroker
       @chunks.each do |chunk|
         # update progress infomation
         ProgressManager.uploading({
-          :path => @f_path,
-          :fullsize => chunk.fullsize,
-          :chunk_size => chunk.chunk_size,
-          :offset => chunk.offset,
+          'path' => @f_path,
+          'fullsize' => chunk.fullsize,
+          'chunk_size' => chunk.chunk_size,
+          'offset' => chunk.offset,
         })
 
         broker.send_data(chunk.serialize)
@@ -48,32 +48,21 @@ module BitBroker
       @chunks.each do |chunk|
         # update progress infomation
         ProgressManager.uploading({
-          :path => @f_path,
-          :fullsize => chunk.fullsize,
-          :chunk_size => chunk.chunk_size,
-          :offset => chunk.offset,
+          'path' => @f_path,
+          'fullsize' => chunk.fullsize,
+          'chunk_size' => chunk.chunk_size,
+          'offset' => chunk.offset,
         })
 
         broker.send_p_data(dest, chunk.serialize)
       end
     end
 
-    def self.load_binary(metadata, dirpath, binary)
-      data = MessagePack.unpack(binary)
+    def self.load_data(dirpath, data)
       offset = data['offset'] * data['chunk_size']
+      fpath = dirpath + data['path']
 
-      # register metadata if needed
-      metadata.create(data['path'])
-
-      # update progress infomation
-      ProgressManager.downloading({
-        :path => dirpath + data['path'],
-        :fullsize => data['fullsize'],
-        :chunk_size => data['chunk_size'],
-        :offset => data['offset'],
-      })
-
-      File.binwrite(dirpath + data['path'], data['data'], offset)
+      File.binwrite(fpath, data['data'], offset)
     end
   
     private

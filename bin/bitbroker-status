@@ -4,7 +4,12 @@ require 'bitbroker'
 
 def show_status(type)
   container = BitBroker::ProgressManager.send(type)
-  files = container.select {|x| x.progress < 100}
+  files = Array.new
+  container.each do |data|
+    progress = BitBroker::Progress.new(data)
+
+    files << progress if progress.rate < 100
+  end
   unless files.empty?
     puts "=== #{type} ==="
     files.each {|x| puts x}
