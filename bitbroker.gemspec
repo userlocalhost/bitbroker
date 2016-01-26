@@ -29,4 +29,5 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency "bunny", "2.2.1"
   spec.add_runtime_dependency "macaddr", "1.7.1"
   spec.add_runtime_dependency "colorize", "0.7.7"
+  spec.add_runtime_dependency "leveldb", "0.1.9"
 end
