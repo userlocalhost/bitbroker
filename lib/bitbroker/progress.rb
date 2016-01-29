@@ -39,7 +39,14 @@ module BitBroker
 
   class Container
     def initialize(path)
-      @db = LevelDB::DB.new path
+      loop do
+        begin
+          @db = LevelDB::DB.new path
+        rescue LevelDB::DB::Error => e
+          # retry it
+        end
+        break if !!@db
+      end
     end
     def each(&block)
       @db.each do |_key, value|
