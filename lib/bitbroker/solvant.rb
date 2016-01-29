@@ -38,7 +38,7 @@ module BitBroker
           'fullsize' => chunk.fullsize,
           'chunk_size' => chunk.chunk_size,
           'offset' => chunk.offset,
-        })
+        }).close
 
         broker.send_data(chunk.serialize)
       end
@@ -52,7 +52,7 @@ module BitBroker
           'fullsize' => chunk.fullsize,
           'chunk_size' => chunk.chunk_size,
           'offset' => chunk.offset,
-        })
+        }).close
 
         broker.send_p_data(dest, chunk.serialize)
       end

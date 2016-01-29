@@ -10,6 +10,7 @@ def show_status(type)
 
     files << progress if progress.rate < 100
   end
+  container.close
   unless files.empty?
     puts "=== #{type} ==="
     files.each {|x| puts x}
