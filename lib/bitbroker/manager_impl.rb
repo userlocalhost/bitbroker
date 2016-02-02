@@ -178,7 +178,7 @@ module BitBroker
           'fullsize' => data['fullsize'],
           'chunk_size' => data['chunk_size'],
           'offset' => data['offset'],
-        }).close
+        })
       end
 
       Solvant.load_data(dirpath, data)
