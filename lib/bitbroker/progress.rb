@@ -43,6 +43,8 @@ module BitBroker
         begin
           @db = LevelDB::DB.new path
         rescue LevelDB::DB::Error => e
+          Log.warn("[Container] (initialize) conflict is happend, retry it")
+          sleep 0.5
           # retry it
         end
         break if !!@db

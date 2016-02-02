@@ -82,7 +82,7 @@ module BitBroker
 
     private
     def recv(rkey, &block)
-      queue = @channel.queue('', :exclusive => true)
+      queue = @channel.queue('', :exclusive => true, :arguments => {'x-queue-mode' => 'lazy'})
       queue.bind(@exchange, :routing_key => rkey)
       begin
         queue.subscribe(:block => true) do |info, prop, binary|

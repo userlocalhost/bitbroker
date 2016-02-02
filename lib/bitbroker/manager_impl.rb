@@ -65,8 +65,6 @@ module BitBroker
           Thread.new do
             Solvant.new(@metadata.dir, rpath).upload(@publisher)
           end
-
-          @metadata.advertise(@publisher)
         end
       end
 
